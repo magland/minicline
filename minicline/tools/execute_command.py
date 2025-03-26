@@ -45,12 +45,9 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str) -> Tuple
         if result.stderr:
             output_parts.append(f"STDERR:\n{result.stderr}")
 
-        # If no output, provide basic success message
-        if not output_parts:
-            output_parts.append("Command executed successfully (no output)")
-
-        # For failed commands, prefix with error status
-        if result.returncode != 0:
+        if result.returncode == 0:
+            output_parts.insert(0, "Command executed successfully")
+        else:
             output_parts.insert(0, f"Command failed with exit code {result.returncode}")
 
         return tool_call_summary, "\n".join(output_parts)
