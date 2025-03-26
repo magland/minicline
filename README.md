@@ -15,7 +15,10 @@ From command line:
 # Provide instructions directly
 minicline perform-task "your instructions here"
 
-# Or use a file containing instructions
+# Specify a model
+minicline perform-task --model google/gemini-2.0-flash-001 "your instructions here"
+
+# Use a file containing instructions
 minicline perform-task -f /path/to/instructions.txt
 ```
 
@@ -25,7 +28,11 @@ from minicline import perform_task
 
 instructions = '...'
 
+# Default model (google/gemini-2.0-flash-001)
 perform_task(instructions, cwd="/path/to/working/directory")
+
+# Specify a different OpenRouter model
+perform_task(instructions, cwd="/path/to/working/directory", model="...")
 ```
 
 ## Environment Variables

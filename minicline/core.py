@@ -119,7 +119,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str) -> Tuple[str,
         summary = f"Unknown tool '{tool_name}'"
         return summary, "No implementation available"
 
-def perform_task(instructions: str, *, cwd: str | None = None) -> None:
+def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None) -> None:
     """Perform a task based on the given instructions.
 
     Args:
@@ -128,6 +128,9 @@ def perform_task(instructions: str, *, cwd: str | None = None) -> None:
     """
     if not cwd:
         cwd = os.getcwd()
+
+    if not model:
+        model = "google/gemini-2.0-flash-001"
 
     # Initialize conversation with system prompt
     system_prompt = read_system_prompt(cwd=cwd)
@@ -149,7 +152,7 @@ def perform_task(instructions: str, *, cwd: str | None = None) -> None:
     # Main conversation loop
     while True:
         # Get assistant's response
-        content, messages, prompt_tokens, completion_tokens = run_completion(messages, model="google/gemini-2.0-flash-001")
+        content, messages, prompt_tokens, completion_tokens = run_completion(messages, model=model)
         total_prompt_tokens += prompt_tokens
         total_completion_tokens += completion_tokens
 
