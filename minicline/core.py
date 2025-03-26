@@ -181,6 +181,13 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         if tool_result_text == "TASK_COMPLETE":
             break
 
+        # print the result of the tool
+        print("=========================================")
+        print(f"\n{tool_call_summary}:")
+        print(tool_result_text)
+        print("=========================================")
+        print()
+
         # Add tool result as next user message
         base_env = get_base_env(cwd=cwd)
         messages.append({
