@@ -26,6 +26,15 @@ from minicline import perform_task
 instructions = '...'
 
 perform_task(instructions, cwd="/path/to/working/directory")
+```
+
+## Environment Variables
+
+The application requires the `OPENROUTER_API_KEY` environment variable to be set. You can set this variable by creating a `.env` file in the working directory with the following content:
+
+```
+OPENROUTER_API_KEY=your_api_key
+```
 
 ## License
 
