@@ -13,12 +13,17 @@ This document outlines the steps to deploy minicline to PyPI.
 
 ## Steps to Deploy
 
-1. Update version in `pyproject.toml`:
+1. Update version in `pyproject.toml` and in __init__.py:
    ```toml
    [project]
    name = "minicline"
    version = "X.Y.Z"  # <-- Update this
    ```
+
+   ```python
+   __version__ = "X.Y.Z"  # <-- Update this
+   ```
+   Replace `X.Y.Z` with the new version number.
 
 2. Build the distribution packages:
    ```bash
