@@ -25,7 +25,13 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
     print(command)
     print("================================")
 
-    if not auto or ((not approve_all_commands) and requires_approval):
+    ask_user = True
+    if approve_all_commands:
+        ask_user = False
+    if auto and not requires_approval:
+        ask_user = False
+
+    if ask_user:
         if requires_approval:
             question = f"Would you like to execute the above command (requires approval)? Press ENTER or 'y' to execute the command or enter a message to reject this action [y]"
         else:
