@@ -162,8 +162,6 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
 
     # Initialize conversation with system prompt
     system_prompt = read_system_prompt(cwd=cwd, auto=auto)
-    print(system_prompt)
-    raise Exception("abc")
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": system_prompt}
     ]
