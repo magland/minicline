@@ -9,7 +9,7 @@ from .tools.list_files import list_files
 from .tools.ask_followup_question import ask_followup_question
 from .tools.write_to_file import write_to_file
 from .tools.replace_in_file import replace_in_file
-from .tools.attemp_completion import attempt_completion
+from .tools.attempt_completion import attempt_completion
 import os
 
 def read_system_prompt(*, cwd: str | None) -> str:
