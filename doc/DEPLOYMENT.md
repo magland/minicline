@@ -1,0 +1,52 @@
+# Deployment Instructions
+
+This document outlines the steps to deploy minicline to PyPI.
+
+## Prerequisites
+
+- Python 3.8 or higher
+- `build` and `twine` packages installed:
+  ```bash
+  python -m pip install --user build twine
+  ```
+- PyPI account with access rights to the minicline package
+
+## Steps to Deploy
+
+1. Update version in `pyproject.toml`:
+   ```toml
+   [project]
+   name = "minicline"
+   version = "X.Y.Z"  # <-- Update this
+   ```
+
+2. Build the distribution packages:
+   ```bash
+   python -m build
+   ```
+   This creates both wheel and source distribution in the `dist/` directory.
+
+3. Verify the package files:
+   ```bash
+   python -m twine check dist/*
+   ```
+   Fix any warnings/errors before proceeding.
+
+4. Upload to PyPI:
+   ```bash
+   python -m twine upload dist/*
+   ```
+   Enter your PyPI API token when prompted.
+
+## Post-Deployment
+
+1. Create and push a git tag for the release:
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+2. Clean up build artifacts:
+   ```bash
+   rm -rf build/ dist/ *.egg-info/
+   ```
