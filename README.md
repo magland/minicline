@@ -2,6 +2,8 @@
 
 Command-line and Python interface for performing software engineering tasks using large language models. It is based on [Cline](https://cline.bot/), but is simpler, uses fewer input tokens, has fewer capabilities, and does not depend on VSCode. It borrows prompts, logic, conventions, and formatting from Cline.
 
+This package was created during the [Pre-COSYNE Brainhack](https://pre-cosyne-brainhack.github.io/hackathon2025/posts/about/), March 2025, Montreal.
+
 The primary focus is automatic generation of scientific notebooks, targeting projects like [dandi-notebook-gen](https://github.com/magland/dandi-notebook-gen).
 
 ## Installation

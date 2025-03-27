@@ -1,4 +1,5 @@
 import re
+import sys
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from .completion.run_completion import run_completion
@@ -78,76 +79,101 @@ def parse_tool_use_call(content: str) -> Optional[Tuple[Optional[str], str, Dict
         params[param_name] = param_value
     return thinking_content, tool_name, params
 
-def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool) -> Tuple[str, str]:
+def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool) -> Tuple[str, str, bool]:
     """Execute a tool and return a tuple of (tool_call_summary, result_text)."""
 
     # Tool implementations
     if tool_name == "read_file":
-        return read_file(params['path'], cwd=cwd)
+        summary, text = read_file(params['path'], cwd=cwd)
+        return summary, text, True
 
     elif tool_name == "write_to_file":
-        return write_to_file(
+        summary, text = write_to_file(
             params['path'],
             params['content'],
             cwd=cwd,
             auto=auto
         )
+        return summary, text, True
 
     elif tool_name == "replace_in_file":
-        return replace_in_file(
+        summary, text = replace_in_file(
             params['path'],
             params['diff'],
             cwd=cwd,
             auto=auto
         )
+        return summary, text, True
 
     elif tool_name == "search_files":
-        return search_files(
+        summary, text = search_files(
             params['path'],
             params['regex'],
             params.get('file_pattern'),
             cwd=cwd
         )
+        return summary, text, True
 
     elif tool_name == "execute_command":
-            timeout = int(params.get('timeout', 60))  # Default to 60 seconds if not provided
-            return execute_command(
-                params['command'],
-                params['requires_approval'],
-                cwd=cwd,
-                auto=auto,
-                approve_all_commands=approve_all_commands,
-                timeout=timeout
-            )
+        timeout = int(params.get('timeout', 60))  # Default to 60 seconds if not provided
+        summary, text = execute_command(
+            params['command'],
+            params['requires_approval'],
+            cwd=cwd,
+            auto=auto,
+            approve_all_commands=approve_all_commands,
+            timeout=timeout
+        )
+        return summary, text, True
 
     elif tool_name == "list_files":
-        return list_files(
+        summary, text = list_files(
             params['path'],
             params.get('recursive', False),
             cwd=cwd
         )
+        return summary, text, True
 
     elif tool_name == "ask_followup_question":
         if auto:
             # even though the system message doesn't provide this option, it's possible
             # that the AI knows about it anyway. So, let's just reply as appropriate
-            return "ask_followup_question", "The user is not able to answer questions because we are in auto mode"
-        return ask_followup_question(
+            return "ask_followup_question", "The user is not able to answer questions because we are in auto mode", False
+        summary, text = ask_followup_question(
             params['question'],
             params.get('options')
         )
+        return summary, text, True
 
     elif tool_name == "attempt_completion":
-        return attempt_completion(
+        summary, text = attempt_completion(
             params['result'],
             auto=auto
         )
+        return summary, text, True
 
     else:
         summary = f"Unknown tool '{tool_name}'"
-        return summary, "No implementation available"
+        return summary, "No implementation available", False
 
-def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False) -> None:
+class TeeOutput:
+    """Class that duplicates output to both console and log file."""
+    def __init__(self, log_file_handle):
+        self.stdout = sys.stdout
+        self.log_file = log_file_handle
+
+    def write(self, text):
+        self.stdout.write(text)
+        if self.log_file:
+            self.log_file.write(text)
+            self.log_file.flush()
+
+    def flush(self):
+        self.stdout.flush()
+        if self.log_file:
+            self.log_file.flush()
+
+def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False):
     """Perform a task based on the given instructions.
 
     Args:
@@ -157,6 +183,10 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         log_file: Optional file path to write verbose logs to
         auto: Whether to run in automatic mode where no user input is required and all actions proposed by the AI are taken (except when commands require approval and approve_all_commands is False)
         approve_all_commands: Whether to automatically approve all commands that require approval
+
+    Returns:
+        Tuple of (total_prompt_tokens
+        total_completion_tokens)
     """
     if not cwd:
         cwd = os.getcwd()
@@ -181,10 +211,14 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
     total_prompt_tokens = 0
     total_completion_tokens = 0
 
-    # Open log file if specified
+    # Open log file if specified and set up output redirection
     log_file_handle = open(log_file, 'w') if log_file else None
+    original_stdout = sys.stdout
 
+    num_consecutive_failures = 0
     try:
+        if log_file_handle:
+            sys.stdout = TeeOutput(log_file_handle)
         # Main conversation loop
         while True:
             # Get assistant's response
@@ -195,48 +229,44 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             # Parse and execute tool if found
             tool_use_call = parse_tool_use_call(content)
             if not tool_use_call:
-                error_msg = "\nNo valid tool use found in assistant's message\nMessage content: " + content
-                print(error_msg)
-                if log_file_handle:
-                    log_file_handle.write(error_msg + "\n")
-                raise Exception("Assistant did not use a valid tool")
+                print("No tool use found. Please provide a tool use in the following format: <tool_name><param1>value1</param1><param2>value2</param2></tool_name>")
+                num_consecutive_failures += 1
+                if num_consecutive_failures > 3:
+                    raise Exception("Too many consecutive failures. Exiting.")
+                messages.append({"role": "system", "content": "No tool use found. Please provide a tool use in the following format: <tool_name><param1>value1</param1><param2>value2</param2></tool_name>"})
+                continue
 
             thinking_content, tool_name, params = tool_use_call
 
             if thinking_content:
-                msg = f"\nThinking: {thinking_content}"
-                print(msg)
-                if log_file_handle:
-                    log_file_handle.write(msg + "\n")
+                print(thinking_content)
 
-            # Print and log the tool name and number of tokens
-            def log(msg: str):
-                print(msg)
-                if log_file_handle:
-                    log_file_handle.write(msg + '\n')
-                    log_file_handle.flush()
+            print(f"\nTool: {tool_name}")
+            print(f"Params: {params}")
+            print(f"Total prompt tokens: {total_prompt_tokens}")
+            print(f"Total completion tokens: {total_completion_tokens}")
+            print("")
 
-            log(f"\nTool: {tool_name}")
-            log(f"Params: {params}")
-            log(f"Total prompt tokens: {total_prompt_tokens}")
-            log(f"Total completion tokens: {total_completion_tokens}")
-            log("")
-
-            tool_call_summary, tool_result_text = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands)
+            tool_call_summary, tool_result_text, handled = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands)
+            if not handled:
+                num_consecutive_failures += 1
+                if num_consecutive_failures > 3:
+                    raise Exception("Too many consecutive failures. Exiting.")
+            else:
+                num_consecutive_failures = 0
 
             if tool_result_text == "TASK_COMPLETE":
                 if log_file_handle:
                     log_file_handle.close()
                 break
 
-            # Print and log the result of the tool
-            log("=========================================")
-            log(f"\n{tool_call_summary}:")
-            log(tool_result_text)
-            log("=========================================")
-            log("")
+            # Print the result of the tool
+            print("=========================================")
+            print(f"\n{tool_call_summary}:")
+            print(tool_result_text)
+            print("=========================================")
+            print("")
 
-            # Add tool result as next user message
             base_env = get_base_env(cwd=cwd)
             messages.append({
                 "role": "user",
@@ -247,9 +277,12 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
                 ]
             })
     finally:
-        # Ensure log file is closed even if an error occurs
+        # Restore original stdout and close log file
         if log_file_handle:
+            sys.stdout = original_stdout
             log_file_handle.close()
+
+    return total_prompt_tokens, total_completion_tokens
 
 def get_base_env(*, cwd: str) -> str:
     # Get recursive list of files using Path
