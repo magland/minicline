@@ -12,7 +12,7 @@ from .tools.replace_in_file import replace_in_file
 from .tools.attempt_completion import attempt_completion
 import os
 
-def read_system_prompt(*, cwd: str | None) -> str:
+def read_system_prompt(*, cwd: str | None, auto: bool = False) -> str:
     """Read and process the system prompt template."""
     template_path = Path(__file__).parent / "templates" / "system_prompt.md"
     with open(template_path, "r") as f:
@@ -20,6 +20,22 @@ def read_system_prompt(*, cwd: str | None) -> str:
 
     if cwd:
         content = content.replace("{{ cwd }}", cwd)
+
+    # In auto mode, remove sections and their markers
+    if auto:
+        content = re.sub(
+            r'=== begin if not auto ===\n.*?=== end if not auto ===\n',
+            '',
+            content,
+            flags=re.DOTALL
+        )
+    else:
+        # Otherwise just remove the markers
+        content = re.sub(
+            r'=== (begin|end) if not auto ===\n',
+            '',
+            content
+        )
 
     return content
 
@@ -62,7 +78,7 @@ def parse_tool_use_call(content: str) -> Optional[Tuple[Optional[str], str, Dict
         params[param_name] = param_value
     return thinking_content, tool_name, params
 
-def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str) -> Tuple[str, str]:
+def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool) -> Tuple[str, str]:
     """Execute a tool and return a tuple of (tool_call_summary, result_text)."""
 
     # Tool implementations
@@ -73,14 +89,16 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str) -> Tuple[str,
         return write_to_file(
             params['path'],
             params['content'],
-            cwd=cwd
+            cwd=cwd,
+            auto=auto
         )
 
     elif tool_name == "replace_in_file":
         return replace_in_file(
             params['path'],
             params['diff'],
-            cwd=cwd
+            cwd=cwd,
+            auto=auto
         )
 
     elif tool_name == "search_files":
@@ -95,7 +113,9 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str) -> Tuple[str,
         return execute_command(
             params['command'],
             params['requires_approval'],
-            cwd=cwd
+            cwd=cwd,
+            auto=auto,
+            approve_all_commands=approve_all_commands
         )
 
     elif tool_name == "list_files":
@@ -106,6 +126,8 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str) -> Tuple[str,
         )
 
     elif tool_name == "ask_followup_question":
+        if auto:
+            raise Exception("Cannot ask follow-up question in auto mode")
         return ask_followup_question(
             params['question'],
             params.get('options')
@@ -113,14 +135,15 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str) -> Tuple[str,
 
     elif tool_name == "attempt_completion":
         return attempt_completion(
-            params['result']
+            params['result'],
+            auto=auto
         )
 
     else:
         summary = f"Unknown tool '{tool_name}'"
         return summary, "No implementation available"
 
-def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, log_file: str | Path | None = None) -> None:
+def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False) -> None:
     """Perform a task based on the given instructions.
 
     Args:
@@ -128,6 +151,8 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         cwd: Optional working directory for the task
         model: Optional model to use for completion
         log_file: Optional file path to write verbose logs to
+        auto: Whether to run in automatic mode where no user input is required and all actions proposed by the AI are taken (except when commands require approval and approve_all_commands is False)
+        approve_all_commands: Whether to automatically approve all commands that require approval
     """
     if not cwd:
         cwd = os.getcwd()
@@ -136,7 +161,9 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         model = "google/gemini-2.0-flash-001"
 
     # Initialize conversation with system prompt
-    system_prompt = read_system_prompt(cwd=cwd)
+    system_prompt = read_system_prompt(cwd=cwd, auto=auto)
+    print(system_prompt)
+    raise Exception("abc")
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": system_prompt}
     ]
@@ -193,7 +220,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             log(f"Total completion tokens: {total_completion_tokens}")
             log("")
 
-            tool_call_summary, tool_result_text = execute_tool(tool_name, params, cwd)
+            tool_call_summary, tool_result_text = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands)
 
             if tool_result_text == "TASK_COMPLETE":
                 if log_file_handle:

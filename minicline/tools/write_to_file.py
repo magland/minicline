@@ -3,13 +3,14 @@
 from pathlib import Path
 from typing import Tuple
 
-def write_to_file(path: str, content: str, *, cwd: str) -> Tuple[str, str]:
+def write_to_file(path: str, content: str, *, cwd: str, auto: bool) -> Tuple[str, str]:
     """Write content to a file, creating parent directories if needed.
 
     Args:
         path: Path to write to (relative to cwd)
         content: Content to write to the file
         cwd: Current working directory
+        auto: Whether to automatically approve the action
 
     Returns:
         Tuple of (tool_call_summary, result_text) where:
@@ -23,10 +24,11 @@ def write_to_file(path: str, content: str, *, cwd: str) -> Tuple[str, str]:
     print(content)
     print("================================")
 
-    question = f"Would you like to write this content to {path}? Press ENTER or 'y' to write the content or enter a message to reject this action [y]"
-    response = input(f"{question}: ").strip()
-    if response.lower() not in ["", "y"]:
-        return tool_call_summary, f"User rejected writing content to file with the following message: {response}"
+    if not auto:
+        question = f"Would you like to write this content to {path}? Press ENTER or 'y' to write the content or enter a message to reject this action [y]"
+        response = input(f"{question}: ").strip()
+        if response.lower() not in ["", "y"]:
+            return tool_call_summary, f"User rejected writing content to file with the following message: {response}"
 
     try:
         # Convert to absolute path if relative

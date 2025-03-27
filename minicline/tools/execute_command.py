@@ -1,10 +1,9 @@
 """Tool for executing system commands."""
 
 import subprocess
-from typing import Tuple, Dict, Any
-from pathlib import Path
+from typing import Tuple
 
-def execute_command(command: str, requires_approval: bool, *, cwd: str) -> Tuple[str, str]:
+def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool) -> Tuple[str, str]:
     """Execute a system command.
 
     Args:
@@ -26,18 +25,14 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str) -> Tuple
     print(command)
     print("================================")
 
-    question = f"Would you like to execute the above command? Press ENTER or 'y' to execute the command or enter a message to reject this action [y]"
-    response = input(f"{question}: ").strip()
-    if response.lower() not in ["", "y"]:
-        return tool_call_summary, f"User rejected executing the command with the following message: {response}"
-
-    # For now we always ask for approval... in the future we can respect the requires_approval flag
-    # # if requires approval, ask user to approve by typing 'yes' or 'y'
-    # if requires_approval:
-    #     print(f"Approval required to execute command: {command}")
-    #     user_approval = input("Type 'yes' or 'y' to approve: ")
-    #     if user_approval.lower() not in ["yes", "y"]:
-    #         return tool_call_summary, "Command execution not approved by user"
+    if not auto or ((not approve_all_commands) and requires_approval):
+        if requires_approval:
+            question = f"Would you like to execute the above command (requires approval)? Press ENTER or 'y' to execute the command or enter a message to reject this action [y]"
+        else:
+            question = f"Would you like to execute the above command? Press ENTER or 'y' to execute the command or enter a message to reject this action [y]"
+        response = input(f"{question}: ").strip()
+        if response.lower() not in ["", "y"]:
+            return tool_call_summary, f"User rejected executing the command with the following message: {response}"
 
     try:
         # Run command and capture output

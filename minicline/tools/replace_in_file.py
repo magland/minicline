@@ -23,13 +23,14 @@ def parse_search_replace_blocks(diff: str) -> list[tuple[str, str]]:
 
     return blocks
 
-def replace_in_file(path: str, diff: str, *, cwd: str) -> Tuple[str, str]:
+def replace_in_file(path: str, diff: str, *, cwd: str, auto: bool) -> Tuple[str, str]:
     """Replace content in a file using search/replace blocks.
 
     Args:
         path: Path to the file to modify (relative to cwd)
         diff: String containing one or more search/replace blocks
         cwd: Current working directory
+        auto: Whether to automatically approve the action
 
     Returns:
         Tuple of (tool_call_summary, result_text) where:
@@ -43,10 +44,11 @@ def replace_in_file(path: str, diff: str, *, cwd: str) -> Tuple[str, str]:
     print(diff)
     print("================================")
 
-    question = f"Would you like to make this change to {path}? Press ENTER or 'y' to write the change or enter a message to reject this action [y]"
-    response = input(f"{question}: ").strip()
-    if response.lower() not in ["", "y"]:
-        return tool_call_summary, f"User rejected replacing content to file with the following message: {response}"
+    if not auto:
+        question = f"Would you like to make this change to {path}? Press ENTER or 'y' to write the change or enter a message to reject this action [y]"
+        response = input(f"{question}: ").strip()
+        if response.lower() not in ["", "y"]:
+            return tool_call_summary, f"User rejected replacing content to file with the following message: {response}"
 
     try:
         # Convert to absolute path if relative
