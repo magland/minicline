@@ -127,7 +127,9 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
 
     elif tool_name == "ask_followup_question":
         if auto:
-            raise Exception("Cannot ask follow-up question in auto mode")
+            # even though the system message doesn't provide this option, it's possible
+            # that the AI knows about it anyway. So, let's just reply as appropriate
+            return "ask_followup_question", "The user is not able to answer questions because we are in auto mode"
         return ask_followup_question(
             params['question'],
             params.get('options')
