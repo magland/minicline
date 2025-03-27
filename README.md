@@ -7,9 +7,7 @@ The primary focus is automatic generation of scientific notebooks, targeting pro
 ## Installation
 
 ```bash
-# clone this repo, then
-cd minicline
-pip install .
+pip install minicline
 ```
 
 ## Setup
