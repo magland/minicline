@@ -110,13 +110,15 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
         )
 
     elif tool_name == "execute_command":
-        return execute_command(
-            params['command'],
-            params['requires_approval'],
-            cwd=cwd,
-            auto=auto,
-            approve_all_commands=approve_all_commands
-        )
+            timeout = int(params.get('timeout', 60))  # Default to 60 seconds if not provided
+            return execute_command(
+                params['command'],
+                params['requires_approval'],
+                cwd=cwd,
+                auto=auto,
+                approve_all_commands=approve_all_commands,
+                timeout=timeout
+            )
 
     elif tool_name == "list_files":
         return list_files(

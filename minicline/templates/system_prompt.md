@@ -31,6 +31,7 @@ Description: Request to execute a CLI command on the system. Use this when you n
 Parameters:
 - command: (required) The CLI command to execute. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions.
 - requires_approval: (required) A boolean indicating whether this command requires explicit user approval before execution in case the user has auto-approve mode enabled. Set to 'true' for potentially impactful operations like installing/uninstalling packages, deleting/overwriting files, system configuration changes, network operations, or any commands that could have unintended side effects. Set to 'false' for safe operations like reading files/directories, running development servers, building projects, and other non-destructive operations.
+- timeout: (optional) Maximum time in seconds to wait for the command to complete. Defaults to 60 seconds. Set to 0 for no timeout.
 Usage:
 <execute_command>
 <command>Your command here</command>
@@ -51,7 +52,7 @@ Description: Request to write content to a file at the specified path. If the fi
 Parameters:
 - path: (required) The path of the file to write to (relative to the current working directory {{ cwd }})
 - content: (required) The content to write to the file. ALWAYS provide the COMPLETE intended content of the file, without any truncation or omissions. You MUST include ALL parts of the file, even if they haven't been modified.
-Usage:
+Usage:c
 <write_to_file>
 <path>File path here</path>
 <content>

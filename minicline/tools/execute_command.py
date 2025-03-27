@@ -3,13 +3,16 @@
 import subprocess
 from typing import Tuple
 
-def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool) -> Tuple[str, str]:
+def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool, timeout: int = 60) -> Tuple[str, str]:
     """Execute a system command.
 
     Args:
         command: The command to execute
         requires_approval: Whether the command requires explicit user approval
         cwd: Current working directory
+        auto: Whether running in automatic mode
+        approve_all_commands: Whether to automatically approve all commands
+        timeout: Maximum time in seconds to wait for command completion (default: 60, 0 for no timeout)
 
     Returns:
         Tuple of (tool_call_summary, result_text) where:
@@ -42,13 +45,17 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
 
     try:
         # Run command and capture output
-        result = subprocess.run(
-            command,
-            shell=True,
-            cwd=cwd,
-            text=True,
-            capture_output=True
-        )
+        try:
+            result = subprocess.run(
+                command,
+                shell=True,
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                timeout=timeout if timeout > 0 else None
+            )
+        except subprocess.TimeoutExpired:
+            return tool_call_summary, f"Command timed out after {timeout} seconds"
 
         # Format output including both stdout and stderr
         output_parts = []
