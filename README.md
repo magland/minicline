@@ -72,7 +72,7 @@ The CLI supports two automation flags that can streamline task execution:
 * `--approve-all-commands`: Automatically approves all commands that would normally require manual approval. This includes potentially impactful operations like installing packages, modifying system files, or running network operations.
 
 Use these options with caution, especially in production environments, as they bypass normal safety prompts and confirmations.
-```
+
 ## License
 
 This project is licensed under the Apache 2.0 License.
