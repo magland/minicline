@@ -38,6 +38,16 @@ def replace_in_file(path: str, diff: str, *, cwd: str) -> Tuple[str, str]:
     """
     tool_call_summary = f"replace_in_file for '{path}'"
 
+    print("================================")
+    print(f"Proposed replacement in {path}:")
+    print(diff)
+    print("================================")
+
+    question = f"Would you like to make this change to {path}? Press ENTER or 'y' to write the change or enter a message to reject this action [y]"
+    response = input(f"{question}: ").strip()
+    if response.lower() not in ["", "y"]:
+        return tool_call_summary, f"User rejected replacing content to file with the following message: {response}"
+
     try:
         # Convert to absolute path if relative
         file_path = Path(cwd) / path

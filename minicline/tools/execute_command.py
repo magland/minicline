@@ -21,12 +21,23 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str) -> Tuple
     if requires_approval:
         tool_call_summary += " (requires approval)"
 
-    # if requires approval, ask user to approve by typing 'yes' or 'y'
-    if requires_approval:
-        print(f"Approval required to execute command: {command}")
-        user_approval = input("Type 'yes' or 'y' to approve: ")
-        if user_approval.lower() not in ["yes", "y"]:
-            return tool_call_summary, "Command execution not approved by user"
+    print("================================")
+    print("Command to be executed")
+    print(command)
+    print("================================")
+
+    question = f"Would you like to execute the above command? Press ENTER or 'y' to execute the command or enter a message to reject this action [y]"
+    response = input(f"{question}: ").strip()
+    if response.lower() not in ["", "y"]:
+        return tool_call_summary, f"User rejected executing the command with the following message: {response}"
+
+    # For now we always ask for approval... in the future we can respect the requires_approval flag
+    # # if requires approval, ask user to approve by typing 'yes' or 'y'
+    # if requires_approval:
+    #     print(f"Approval required to execute command: {command}")
+    #     user_approval = input("Type 'yes' or 'y' to approve: ")
+    #     if user_approval.lower() not in ["yes", "y"]:
+    #         return tool_call_summary, "Command execution not approved by user"
 
     try:
         # Run command and capture output

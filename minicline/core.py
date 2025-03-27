@@ -9,6 +9,7 @@ from .tools.list_files import list_files
 from .tools.ask_followup_question import ask_followup_question
 from .tools.write_to_file import write_to_file
 from .tools.replace_in_file import replace_in_file
+from .tools.attemp_completion import attempt_completion
 import os
 
 def read_system_prompt(*, cwd: str | None) -> str:
@@ -111,20 +112,22 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str) -> Tuple[str,
         )
 
     elif tool_name == "attempt_completion":
-        print(f"{params['result']}")
-        print("\nTask completed!")
-        return "attempt_completion", "TASK_COMPLETE"
+        return attempt_completion(
+            params['result']
+        )
 
     else:
         summary = f"Unknown tool '{tool_name}'"
         return summary, "No implementation available"
 
-def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None) -> None:
+def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, log_file: str | Path | None = None) -> None:
     """Perform a task based on the given instructions.
 
     Args:
         instructions: The task instructions
         cwd: Optional working directory for the task
+        model: Optional model to use for completion
+        log_file: Optional file path to write verbose logs to
     """
     if not cwd:
         cwd = os.getcwd()
@@ -149,55 +152,75 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
     total_prompt_tokens = 0
     total_completion_tokens = 0
 
-    # Main conversation loop
-    while True:
-        # Get assistant's response
-        content, messages, prompt_tokens, completion_tokens = run_completion(messages, model=model)
-        total_prompt_tokens += prompt_tokens
-        total_completion_tokens += completion_tokens
+    # Open log file if specified
+    log_file_handle = open(log_file, 'w') if log_file else None
 
-        # Parse and execute tool if found
-        tool_use_call = parse_tool_use_call(content)
-        if not tool_use_call:
-            print("\nNo valid tool use found in assistant's message")
-            print("Message content:", content)
-            raise Exception("Assistant did not use a valid tool")
+    try:
+        # Main conversation loop
+        while True:
+            # Get assistant's response
+            content, messages, prompt_tokens, completion_tokens = run_completion(messages, model=model)
+            total_prompt_tokens += prompt_tokens
+            total_completion_tokens += completion_tokens
 
-        thinking_content, tool_name, params = tool_use_call
+            # Parse and execute tool if found
+            tool_use_call = parse_tool_use_call(content)
+            if not tool_use_call:
+                error_msg = "\nNo valid tool use found in assistant's message\nMessage content: " + content
+                print(error_msg)
+                if log_file_handle:
+                    log_file_handle.write(error_msg + "\n")
+                raise Exception("Assistant did not use a valid tool")
 
-        if thinking_content:
-            print("\nThinking:", thinking_content)
+            thinking_content, tool_name, params = tool_use_call
 
-        # Print the tool name and number of tokens, and ask user to press any key to continue
-        print(f"\nTool: {tool_name}")
-        print(f"Params: {params}")
-        print(f"Total prompt tokens: {total_prompt_tokens}")
-        print(f"Total completion tokens: {total_completion_tokens}")
-        input("\nPress any key to continue...")
-        print()
+            if thinking_content:
+                msg = f"\nThinking: {thinking_content}"
+                print(msg)
+                if log_file_handle:
+                    log_file_handle.write(msg + "\n")
 
-        tool_call_summary, tool_result_text = execute_tool(tool_name, params, cwd)
+            # Print and log the tool name and number of tokens
+            def log(msg: str):
+                print(msg)
+                if log_file_handle:
+                    log_file_handle.write(msg + '\n')
+                    log_file_handle.flush()
 
-        if tool_result_text == "TASK_COMPLETE":
-            break
+            log(f"\nTool: {tool_name}")
+            log(f"Params: {params}")
+            log(f"Total prompt tokens: {total_prompt_tokens}")
+            log(f"Total completion tokens: {total_completion_tokens}")
+            log("")
 
-        # print the result of the tool
-        print("=========================================")
-        print(f"\n{tool_call_summary}:")
-        print(tool_result_text)
-        print("=========================================")
-        print()
+            tool_call_summary, tool_result_text = execute_tool(tool_name, params, cwd)
 
-        # Add tool result as next user message
-        base_env = get_base_env(cwd=cwd)
-        messages.append({
-            "role": "user",
-            "content": [
-                {'type': 'text', 'text': f"[{tool_call_summary}] Result:"},
-                {'type': 'text', 'text': tool_result_text},
-                {'type': 'text', 'text': base_env}
-            ]
-        })
+            if tool_result_text == "TASK_COMPLETE":
+                if log_file_handle:
+                    log_file_handle.close()
+                break
+
+            # Print and log the result of the tool
+            log("=========================================")
+            log(f"\n{tool_call_summary}:")
+            log(tool_result_text)
+            log("=========================================")
+            log("")
+
+            # Add tool result as next user message
+            base_env = get_base_env(cwd=cwd)
+            messages.append({
+                "role": "user",
+                "content": [
+                    {'type': 'text', 'text': f"[{tool_call_summary}] Result:"},
+                    {'type': 'text', 'text': tool_result_text},
+                    {'type': 'text', 'text': base_env}
+                ]
+            })
+    finally:
+        # Ensure log file is closed even if an error occurs
+        if log_file_handle:
+            log_file_handle.close()
 
 def get_base_env(*, cwd: str) -> str:
     # Get recursive list of files using Path

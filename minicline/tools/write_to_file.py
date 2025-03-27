@@ -18,6 +18,16 @@ def write_to_file(path: str, content: str, *, cwd: str) -> Tuple[str, str]:
     """
     tool_call_summary = f"write_to_file for '{path}'"
 
+    print("================================")
+    print(f"Content to be written to {path}:")
+    print(content)
+    print("================================")
+
+    question = f"Would you like to write this content to {path}? Press ENTER or 'y' to write the content or enter a message to reject this action [y]"
+    response = input(f"{question}: ").strip()
+    if response.lower() not in ["", "y"]:
+        return tool_call_summary, f"User rejected writing content to file with the following message: {response}"
+
     try:
         # Convert to absolute path if relative
         file_path = Path(cwd) / path

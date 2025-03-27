@@ -11,7 +11,8 @@ def cli():
 @click.argument('instructions', required=False)
 @click.option('--file', '-f', type=click.Path(exists=True, path_type=Path), help='File containing task instructions')
 @click.option('--model', '-m', help='Model to use for completion (default: google/gemini-2.0-flash-001)')
-def perform_task_cmd(instructions: str | None, file: Path | None, model: str | None):
+@click.option('--log-file', '-l', type=click.Path(dir_okay=False, path_type=Path), help='File to write verbose logs to')
+def perform_task_cmd(instructions: str | None, file: Path | None, model: str | None, log_file: Path | None):
     """Execute a task using provided instructions or from a file.
 
     You can provide instructions directly as an argument:
@@ -32,7 +33,7 @@ def perform_task_cmd(instructions: str | None, file: Path | None, model: str | N
     elif not instructions:
         raise click.UsageError("Either instructions argument or --file option is required")
 
-    perform_task(instructions, model=model)
+    perform_task(instructions, model=model, log_file=log_file)
 
 if __name__ == "__main__":
     cli()
