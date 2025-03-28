@@ -1,6 +1,6 @@
 [project]
 name = "minicline"
-version = "0.1.2"
+version = "0.1.3"
 description = "Command-line interface for executing tasks using large language models, minimal version of Cline"
 authors = [
     {name = "Jeremy Magland"}

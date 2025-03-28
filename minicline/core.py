@@ -2,6 +2,7 @@ import re
 import sys
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+
 from .completion.run_completion import run_completion
 from .tools.read_file import read_file
 from .tools.search_files import search_files
@@ -226,7 +227,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         # Main conversation loop
         while True:
             # Get assistant's response
-            content, messages, prompt_tokens, completion_tokens = run_completion(messages, model=model)
+            content, messages, prompt_tokens, completion_tokens = run_completion_with_retries(messages, model=model, num_retries=5)
             total_prompt_tokens += prompt_tokens
             total_completion_tokens += completion_tokens
 
@@ -303,3 +304,18 @@ def get_base_env(*, cwd: str) -> str:
 
     base_env = f"<environment_details>\nCurrent Working Directory: {cwd}\n\n# Working Directory Files (Recursive)\n{files_str}\n</environment_details>"
     return base_env
+
+
+def run_completion_with_retries(messages: List[Dict[str, Any]], *, model: str, num_retries: int) -> Tuple[str, List[Dict[str, Any]], int, int]:
+    """Run completion with retries in case of failure."""
+    import time
+    retry_wait_time = 1
+    for i in range(num_retries):
+        try:
+            return run_completion(messages, model=model)
+        except Exception as e:
+            print(f"Error running completion: {e}")
+            print(f"Retrying in {retry_wait_time} seconds...")
+            time.sleep(retry_wait_time)
+            retry_wait_time *= 2
+    raise Exception(f"Failed to run completion after {num_retries} retries")
