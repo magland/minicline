@@ -10,6 +10,9 @@ You have access to a set of tools that are executed upon the user's approval. Yo
 
 Tool use is formatted using XML-style tags. The tool name is enclosed in opening and closing tags, and each parameter is similarly enclosed within its own set of tags. Here's the structure:
 
+<thinking>
+[include information about the task and what you need to do]
+</thinking>
 <tool_name>
 <parameter1_name>value1</parameter1_name>
 <parameter2_name>value2</parameter2_name>
@@ -18,6 +21,9 @@ Tool use is formatted using XML-style tags. The tool name is enclosed in opening
 
 For example:
 
+<thinking>
+I need to read the contents of a file to understand the existing code.
+</thinking>
 <read_file>
 <path>src/main.js</path>
 </read_file>

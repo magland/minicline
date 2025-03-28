@@ -215,6 +215,10 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
     log_file_handle = open(log_file, 'w') if log_file else None
     original_stdout = sys.stdout
 
+    print("TASK INSTRUCTIONS:")
+    print(instructions)
+    print("")
+
     num_consecutive_failures = 0
     try:
         if log_file_handle:

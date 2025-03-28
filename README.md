@@ -73,6 +73,14 @@ The CLI supports two automation flags that can streamline task execution:
 
 Use these options with caution, especially in production environments, as they bypass normal safety prompts and confirmations.
 
+## Some notes about changes to the system prompt relative to Cline
+
+In auto mode, don't provide instructions for ask_followup_question as it will be ignored.
+
+Updated the "Tool Use Formatting" to be explicit about using the <thinking></thinking> tags because I found that some models didn't make use of that.
+
+Removed all MCP functionality.
+
 ## License
 
 This project is licensed under the Apache 2.0 License.
