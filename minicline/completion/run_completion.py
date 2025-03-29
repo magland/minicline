@@ -77,6 +77,7 @@ def run_completion(
         completion = response.json()
         prompt_tokens = completion["usage"]["prompt_tokens"]
         completion_tokens = completion["usage"]["completion_tokens"]
+
         total_prompt_tokens += prompt_tokens
         total_completion_tokens += completion_tokens
         # print(f'TOKENS: {int(promt_tokens / 100) / 10} prompt, {int(completion_tokens / 100) / 10} completion; total: {int(total_prompt_tokens / 100) / 10} prompt, {int(total_completion_tokens / 100) / 10} completion')

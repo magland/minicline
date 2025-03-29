@@ -1,9 +1,10 @@
 """Tool for reading file contents."""
 
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
+import base64
 
-def read_image(path: str, *, cwd: str) -> Tuple[str, str]:
+def read_image(path: str, *, cwd: str) -> Tuple[str, str, Union[str, None]]:
     """Read the contents of a file.
 
     Args:
@@ -24,9 +25,9 @@ def read_image(path: str, *, cwd: str) -> Tuple[str, str]:
         # Read and return contents
         with open(file_path, 'rb') as f:
             data = f.read()
-            data_base64 = data.encode("base64") # type: ignore
+            data_base64 = base64.b64encode(data).decode('utf-8')
             data_url = f"data:image/png;base64,{data_base64}"
-            return tool_call_summary, data_url
+            return tool_call_summary, f'The image for {file_path} is attached.', data_url
 
     except Exception as e:
-        return tool_call_summary, f"ERROR READING FILE {path}: {str(e)}"
+        return tool_call_summary, f"ERROR READING FILE {path}: {str(e)}", None

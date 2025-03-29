@@ -42,7 +42,7 @@ def read_system_prompt(*, cwd: str | None, auto: bool = False) -> str:
 
     return content
 
-def parse_tool_use_call(content: str) -> Optional[Tuple[Optional[str], str, Dict[str, Any]]]:
+def parse_tool_use_call(content: str) -> Tuple[Optional[str], Union[str, None], Dict[str, Any]]:
     """Parse a tool use from the assistant's message.
 
     Args:
@@ -62,7 +62,7 @@ def parse_tool_use_call(content: str) -> Optional[Tuple[Optional[str], str, Dict
     remaining_content = content[thinking_match.end():] if thinking_match else content
     tool_match = re.search(pattern, remaining_content, re.DOTALL)
     if not tool_match:
-        return None
+        return thinking_content, None, {}
 
     tool_name = tool_match.group(1)
     tool_content = tool_match.group(2)
@@ -90,8 +90,8 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
         return summary, text, None, True
 
     if tool_name == "read_image":
-        summary, image_data_url = read_image(params['path'], cwd=cwd)
-        return summary, f'The image for {params["path"]} is attached.', image_data_url, True
+        summary, text, image_data_url = read_image(params['path'], cwd=cwd)
+        return summary, text, image_data_url, True
 
     elif tool_name == "write_to_file":
         summary, text = write_to_file(
@@ -241,16 +241,15 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             total_completion_tokens += completion_tokens
 
             # Parse and execute tool if found
-            tool_use_call = parse_tool_use_call(content) # type: ignore
-            if not tool_use_call:
-                print("No tool use found. Please provide a tool use in the following format: <tool_name><param1>value1</param1><param2>value2</param2></tool_name>")
+            thinking_content, tool_name, params = parse_tool_use_call(content) # type: ignore
+            if not tool_name:
+                print('content: ', content)
+                print("No tool use found. Please provide a tool use in the following format: <thinking>...</thinking><tool_name><param1>value1</param1><param2>value2</param2></tool_name>")
                 num_consecutive_failures += 1
                 if num_consecutive_failures > 3:
                     raise Exception("Too many consecutive failures. Exiting.")
-                messages.append({"role": "system", "content": "No tool use found. Please provide a tool use in the following format: <tool_name><param1>value1</param1><param2>value2</param2></tool_name>"})
+                messages.append({"role": "system", "content": "No tool use found. Please provide a tool use in the following format: <thinking>...</thinking><tool_name><param1>value1</param1><param2>value2</param2></tool_name>"})
                 continue
-
-            thinking_content, tool_name, params = tool_use_call
 
             if thinking_content:
                 print(thinking_content)
@@ -304,13 +303,50 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
     return total_prompt_tokens, total_completion_tokens
 
 def get_base_env(*, cwd: str) -> str:
-    # Get recursive list of files using Path
+    # Get list of files using breadth-first search, limited to certain number of files
+    max_num_files = 25
     files = []
-    for path in Path(cwd).rglob('*'):
-        if path.is_file():
-            # Get relative path from cwd
-            rel_path = str(path.relative_to(cwd))
-            files.append(rel_path)
+    dirs_to_process = [Path(cwd)]
+    processed_dirs = set()
+
+    while dirs_to_process and len(files) < max_num_files:
+        current_dir = dirs_to_process.pop(0)
+
+        # never process node_modules
+        if 'node_modules' in str(current_dir):
+            continue
+
+        # never process .git
+        if '.git' in str(current_dir):
+            continue
+
+        # never process .venv
+        if '.venv' in str(current_dir):
+            continue
+
+        # never process __pycache__
+        if '__pycache__' in str(current_dir):
+            continue
+
+        if current_dir in processed_dirs:
+            continue
+
+        processed_dirs.add(current_dir)
+
+        try:
+            # First add files in current directory
+            for path in current_dir.iterdir():
+                if len(files) >= max_num_files:
+                    break
+
+                if path.is_file():
+                    # Get relative path from cwd
+                    rel_path = str(path.relative_to(cwd))
+                    files.append(rel_path)
+                elif path.is_dir():
+                    dirs_to_process.append(path)
+        except PermissionError:
+            continue  # Skip directories we can't access
 
     # Sort files for consistent output
     files.sort()
