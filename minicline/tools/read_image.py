@@ -19,6 +19,7 @@ def read_image(path: str, *, cwd: str) -> Tuple[str, str, Union[str, None]]:
     tool_call_summary = f"read_image for '{path}'"
 
     try:
+        rel_file_path = Path(path)
         # Convert to absolute path if relative
         file_path = Path(cwd) / path
 
@@ -27,7 +28,7 @@ def read_image(path: str, *, cwd: str) -> Tuple[str, str, Union[str, None]]:
             data = f.read()
             data_base64 = base64.b64encode(data).decode('utf-8')
             data_url = f"data:image/png;base64,{data_base64}"
-            return tool_call_summary, f'The image for {file_path} is attached.', data_url
+            return tool_call_summary, f'The image for {rel_file_path} is attached.', data_url
 
     except Exception as e:
         return tool_call_summary, f"ERROR READING FILE {path}: {str(e)}", None
