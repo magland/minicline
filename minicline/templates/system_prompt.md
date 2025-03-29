@@ -53,15 +53,6 @@ Usage:
 <path>File path here</path>
 </read_file>
 
-## read_image
-Description: Request to read the content of an image file at the specified path. Use this tool when you need to extract information from images, such as diagrams, charts, or screenshots. The tool will provide a multimedia response with the image content. Only .png images are supported.
-Parameters:
-- path: (required) The path of the PNG image file to read (relative to the current working directory {{ cwd }})
-Usage:
-<read_image>
-<path>Image path here</path>
-</read_image>
-
 ## write_to_file
 Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. This tool will automatically create any directories needed to write the file.
 Parameters:
@@ -163,6 +154,24 @@ Your final result description here
 </result>
 <command>Command to demonstrate result (optional)</command>
 </attempt_completion>
+
+## read_image
+Description: Request to read the content of an image file at the specified path. Use this tool when you need to extract information from images, such as diagrams, charts, or screenshots. The tool will provide a multimedia response with the image content. Only .png images are supported. This tool should be followed by a call to the reflect tool to share insights or observations about the image content relevant to the task.
+Parameters:
+- path: (required) The path of the PNG image file to read (relative to the current working directory {{ cwd }})
+Usage:
+<read_image>
+<path>Image path here</path>
+</read_image>
+
+## reflect
+Description: Include a reflection in the conversation. Use this tool to share insights, especially after reading an image using the read_image tool to provide information about the image content as related to the task.
+Parameters:
+- reflection: (required) The text of the reflection to be included in the conversation.
+Usage:
+<reflect>
+<reflection>Your reflection text here</reflection>
+</reflect>
 
 # Tool Use Examples
 

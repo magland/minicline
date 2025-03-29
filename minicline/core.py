@@ -158,6 +158,9 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
         )
         return summary, text, None, True
 
+    elif tool_name == "reflect":
+        return "reflect", "Reflection received", None, True
+
     else:
         summary = f"Unknown tool '{tool_name}'"
         return summary, "No implementation available", None, False
