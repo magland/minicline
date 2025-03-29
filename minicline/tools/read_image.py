@@ -24,7 +24,7 @@ def read_image(path: str, *, cwd: str) -> Tuple[str, str]:
         # Read and return contents
         with open(file_path, 'rb') as f:
             data = f.read()
-            data_base64 = data.encode("base64")
+            data_base64 = data.encode("base64") # type: ignore
             data_url = f"data:image/png;base64,{data_base64}"
             return tool_call_summary, data_url
 
