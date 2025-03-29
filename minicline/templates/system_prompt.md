@@ -53,6 +53,15 @@ Usage:
 <path>File path here</path>
 </read_file>
 
+## read_image
+Description: Request to read the content of an image file at the specified path. Use this tool when you need to extract information from images, such as diagrams, charts, or screenshots. The tool will provide a multimedia response with the image content. Only .png images are supported.
+Parameters:
+- path: (required) The path of the PNG image file to read (relative to the current working directory {{ cwd }})
+Usage:
+<read_image>
+<path>Image path here</path>
+</read_image>
+
 ## write_to_file
 Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. This tool will automatically create any directories needed to write the file.
 Parameters:

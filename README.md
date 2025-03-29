@@ -81,6 +81,8 @@ Updated the "Tool Use Formatting" to be explicit about using the <thinking></thi
 
 Removed all MCP functionality.
 
+Support read_image in addition to read_file.
+
 ## License
 
 This project is licensed under the Apache 2.0 License.

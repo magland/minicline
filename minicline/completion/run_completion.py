@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 import requests
 import os
 from dotenv import load_dotenv
@@ -10,7 +10,7 @@ def run_completion(
     messages: List[Dict[str, Any]],
     *,
     model: str
-):
+) -> Tuple[str, List[Dict[str, Any]], int, int]:
     """Execute an AI completion request using the OpenRouter API
 
     This function manages a conversation with an AI model
@@ -75,14 +75,14 @@ def run_completion(
 
         print("Processing response...")
         completion = response.json()
-        promt_tokens = completion["usage"]["prompt_tokens"]
+        prompt_tokens = completion["usage"]["prompt_tokens"]
         completion_tokens = completion["usage"]["completion_tokens"]
-        total_prompt_tokens += promt_tokens
+        total_prompt_tokens += prompt_tokens
         total_completion_tokens += completion_tokens
         # print(f'TOKENS: {int(promt_tokens / 100) / 10} prompt, {int(completion_tokens / 100) / 10} completion; total: {int(total_prompt_tokens / 100) / 10} prompt, {int(total_completion_tokens / 100) / 10} completion')
 
         message = completion["choices"][0]["message"]
-        content = message.get("content", "")
+        content: str = message.get("content", "")
 
         # print("\nReceived assistant response...")
         # Track assistant response

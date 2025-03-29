@@ -1,10 +1,11 @@
 import re
 import sys
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 from pathlib import Path
 
 from .completion.run_completion import run_completion
 from .tools.read_file import read_file
+from .tools.read_image import read_image
 from .tools.search_files import search_files
 from .tools.execute_command import execute_command
 from .tools.list_files import list_files
@@ -80,13 +81,17 @@ def parse_tool_use_call(content: str) -> Optional[Tuple[Optional[str], str, Dict
         params[param_name] = param_value
     return thinking_content, tool_name, params
 
-def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool) -> Tuple[str, str, bool]:
+def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool) -> Tuple[str, str, Union[str, None], bool]:
     """Execute a tool and return a tuple of (tool_call_summary, result_text)."""
 
     # Tool implementations
     if tool_name == "read_file":
         summary, text = read_file(params['path'], cwd=cwd)
-        return summary, text, True
+        return summary, text, None, True
+
+    if tool_name == "read_image":
+        summary, image_data_url = read_image(params['path'], cwd=cwd)
+        return summary, 'The image is attached.', image_data_url, True
 
     elif tool_name == "write_to_file":
         summary, text = write_to_file(
@@ -95,7 +100,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             cwd=cwd,
             auto=auto
         )
-        return summary, text, True
+        return summary, text, None, True
 
     elif tool_name == "replace_in_file":
         summary, text = replace_in_file(
@@ -104,7 +109,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             cwd=cwd,
             auto=auto
         )
-        return summary, text, True
+        return summary, text, None, True
 
     elif tool_name == "search_files":
         summary, text = search_files(
@@ -113,7 +118,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             params.get('file_pattern'),
             cwd=cwd
         )
-        return summary, text, True
+        return summary, text, None, True
 
     elif tool_name == "execute_command":
         timeout = int(params.get('timeout', 60))  # Default to 60 seconds if not provided
@@ -125,7 +130,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             approve_all_commands=approve_all_commands,
             timeout=timeout
         )
-        return summary, text, True
+        return summary, text, None, True
 
     elif tool_name == "list_files":
         summary, text = list_files(
@@ -133,29 +138,29 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             params.get('recursive', False),
             cwd=cwd
         )
-        return summary, text, True
+        return summary, text, None, True
 
     elif tool_name == "ask_followup_question":
         if auto:
             # even though the system message doesn't provide this option, it's possible
             # that the AI knows about it anyway. So, let's just reply as appropriate
-            return "ask_followup_question", "The user is not able to answer questions because we are in auto mode", False
+            return "ask_followup_question", "The user is not able to answer questions because we are in auto mode", None, False
         summary, text = ask_followup_question(
             params['question'],
             params.get('options')
         )
-        return summary, text, True
+        return summary, text, None, True
 
     elif tool_name == "attempt_completion":
         summary, text = attempt_completion(
             params['result'],
             auto=auto
         )
-        return summary, text, True
+        return summary, text, None, True
 
     else:
         summary = f"Unknown tool '{tool_name}'"
-        return summary, "No implementation available", False
+        return summary, "No implementation available", None, False
 
 class TeeOutput:
     """Class that duplicates output to both console and log file."""
@@ -227,12 +232,16 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         # Main conversation loop
         while True:
             # Get assistant's response
-            content, messages, prompt_tokens, completion_tokens = run_completion_with_retries(messages, model=model, num_retries=5)
+            content, messages, prompt_tokens, completion_tokens = run_completion_with_retries(
+                messages=messages,
+                model=model,
+                num_retries=5
+            ) # type: ignore
             total_prompt_tokens += prompt_tokens
             total_completion_tokens += completion_tokens
 
             # Parse and execute tool if found
-            tool_use_call = parse_tool_use_call(content)
+            tool_use_call = parse_tool_use_call(content) # type: ignore
             if not tool_use_call:
                 print("No tool use found. Please provide a tool use in the following format: <tool_name><param1>value1</param1><param2>value2</param2></tool_name>")
                 num_consecutive_failures += 1
@@ -252,7 +261,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             print(f"Total completion tokens: {total_completion_tokens}")
             print("")
 
-            tool_call_summary, tool_result_text, handled = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands)
+            tool_call_summary, tool_result_text, image_data_url, handled = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands)
             if not handled:
                 num_consecutive_failures += 1
                 if num_consecutive_failures > 3:
@@ -273,13 +282,18 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             print("")
 
             base_env = get_base_env(cwd=cwd)
+            content: List[Dict[str, Any]] = [
+                {'type': 'text', 'text': f"[{tool_call_summary}] Result:"},
+                {'type': 'text', 'text': tool_result_text},
+            ]
+            if image_data_url:
+                content.append({'type': 'image_url', 'image_url': {'url': image_data_url}})
+            content.append(
+                {'type': 'text', 'text': base_env}
+            )
             messages.append({
                 "role": "user",
-                "content": [
-                    {'type': 'text', 'text': f"[{tool_call_summary}] Result:"},
-                    {'type': 'text', 'text': tool_result_text},
-                    {'type': 'text', 'text': base_env}
-                ]
+                "content": content
             })
     finally:
         # Restore original stdout and close log file
@@ -306,7 +320,11 @@ def get_base_env(*, cwd: str) -> str:
     return base_env
 
 
-def run_completion_with_retries(messages: List[Dict[str, Any]], *, model: str, num_retries: int) -> Tuple[str, List[Dict[str, Any]], int, int]:
+def run_completion_with_retries(
+        messages: List[Dict[str, Any]], *,
+        model: str,
+        num_retries: int
+    ) -> Tuple[str, List[Dict[str, Any]], int, int]:
     """Run completion with retries in case of failure."""
     import time
     retry_wait_time = 1
@@ -314,6 +332,8 @@ def run_completion_with_retries(messages: List[Dict[str, Any]], *, model: str, n
         try:
             return run_completion(messages, model=model)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"Error running completion: {e}")
             print(f"Retrying in {retry_wait_time} seconds...")
             time.sleep(retry_wait_time)
