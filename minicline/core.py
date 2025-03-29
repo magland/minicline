@@ -91,7 +91,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
 
     if tool_name == "read_image":
         summary, image_data_url = read_image(params['path'], cwd=cwd)
-        return summary, 'The image is attached.', image_data_url, True
+        return summary, f'The image for {params["path"]} is attached.', image_data_url, True
 
     elif tool_name == "write_to_file":
         summary, text = write_to_file(
