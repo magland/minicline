@@ -81,17 +81,17 @@ def parse_tool_use_call(content: str) -> Tuple[Optional[str], Union[str, None], 
         params[param_name] = param_value
     return thinking_content, tool_name, params
 
-def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool) -> Tuple[str, str, Union[str, None], bool]:
+def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool, model: str) -> Tuple[str, str, Union[str, None], bool, int, int]:
     """Execute a tool and return a tuple of (tool_call_summary, result_text)."""
 
     # Tool implementations
     if tool_name == "read_file":
         summary, text = read_file(params['path'], cwd=cwd)
-        return summary, text, None, True
+        return summary, text, None, True, 0, 0
 
     if tool_name == "read_image":
-        summary, text, image_data_url = read_image(params['path'], cwd=cwd)
-        return summary, text, image_data_url, True
+        summary, text, image_data_url, pt, ct = read_image(params['path'], model=model, instructions=params.get('instructions', None), cwd=cwd)
+        return summary, text, image_data_url, True, pt, ct
 
     elif tool_name == "write_to_file":
         summary, text = write_to_file(
@@ -100,7 +100,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             cwd=cwd,
             auto=auto
         )
-        return summary, text, None, True
+        return summary, text, None, True, 0, 0
 
     elif tool_name == "replace_in_file":
         summary, text = replace_in_file(
@@ -109,7 +109,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             cwd=cwd,
             auto=auto
         )
-        return summary, text, None, True
+        return summary, text, None, True, 0, 0
 
     elif tool_name == "search_files":
         summary, text = search_files(
@@ -118,7 +118,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             params.get('file_pattern'),
             cwd=cwd
         )
-        return summary, text, None, True
+        return summary, text, None, True, 0, 0
 
     elif tool_name == "execute_command":
         timeout = int(params.get('timeout', 60))  # Default to 60 seconds if not provided
@@ -130,7 +130,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             approve_all_commands=approve_all_commands,
             timeout=timeout
         )
-        return summary, text, None, True
+        return summary, text, None, True, 0, 0
 
     elif tool_name == "list_files":
         summary, text = list_files(
@@ -138,32 +138,29 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             params.get('recursive', False),
             cwd=cwd
         )
-        return summary, text, None, True
+        return summary, text, None, True, 0, 0
 
     elif tool_name == "ask_followup_question":
         if auto:
             # even though the system message doesn't provide this option, it's possible
             # that the AI knows about it anyway. So, let's just reply as appropriate
-            return "ask_followup_question", "The user is not able to answer questions because we are in auto mode", None, False
+            return "ask_followup_question", "The user is not able to answer questions because we are in auto mode", None, False, 0, 0
         summary, text = ask_followup_question(
             params['question'],
             params.get('options')
         )
-        return summary, text, None, True
+        return summary, text, None, True, 0, 0
 
     elif tool_name == "attempt_completion":
         summary, text = attempt_completion(
             params['result'],
             auto=auto
         )
-        return summary, text, None, True
-
-    elif tool_name == "reflect":
-        return "reflect", "Reflection received", None, True
+        return summary, text, None, True, 0, 0
 
     else:
         summary = f"Unknown tool '{tool_name}'"
-        return summary, "No implementation available", None, False
+        return summary, "No implementation available", None, False, 0, 0
 
 class TeeOutput:
     """Class that duplicates output to both console and log file."""
@@ -263,7 +260,9 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             print(f"Total completion tokens: {total_completion_tokens}")
             print("")
 
-            tool_call_summary, tool_result_text, image_data_url, handled = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands)
+            tool_call_summary, tool_result_text, image_data_url, handled, additional_prompt_tokens, additional_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, model=model)
+            total_prompt_tokens += additional_prompt_tokens
+            total_completion_tokens += additional_completion_tokens
             if not handled:
                 num_consecutive_failures += 1
                 if num_consecutive_failures > 3:

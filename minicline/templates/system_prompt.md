@@ -156,22 +156,15 @@ Your final result description here
 </attempt_completion>
 
 ## read_image
-Description: Request to read the content of an image file at the specified path. Use this tool when you need to extract information from images, such as diagrams, charts, or screenshots. The tool will provide a multimedia response with the image content. Only .png images are supported. This tool should be followed by a call to the reflect tool to share insights or observations about the image content relevant to the task.
+Description: Request to read the content of an image file at the specified path. Use this tool when you need to extract information from images, such as diagrams, charts, or screenshots. The tool will provide a multimedia response with the image content as well as an AI description of the image.
 Parameters:
 - path: (required) The path of the PNG image file to read (relative to the current working directory {{ cwd }})
+- instructions: (optional) Additional instructions or context for providing the AI description of the image.
 Usage:
 <read_image>
 <path>Image path here</path>
+<instructions>Additional instructions here (optional)</instructions>
 </read_image>
-
-## reflect
-Description: Include a reflection in the conversation. Use this tool to share insights, especially after reading an image using the read_image tool to provide information about the image content as related to the task.
-Parameters:
-- reflection: (required) The text of the reflection to be included in the conversation.
-Usage:
-<reflect>
-<reflection>Your reflection text here</reflection>
-</reflect>
 
 # Tool Use Examples
 
