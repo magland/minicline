@@ -45,7 +45,12 @@ This document outlines the steps to deploy minicline to PyPI.
 
 ## Post-Deployment
 
-1. Add and commit changes to the repository:
+1. Add and commit changes to the repository to __init__.py and pyproject.toml:
+   ```bash
+   git add minicline/__init__.py pyproject.toml
+   git commit -m "Release vX.Y.Z"
+   git push
+   ```
 
 2. Create and push a git tag for the release:
    ```bash

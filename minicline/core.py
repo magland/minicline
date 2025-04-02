@@ -271,9 +271,6 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
 
             print(f"\nTool: {tool_name}")
             print(f"Params: {params}")
-            print(f"Total prompt tokens: {total_prompt_tokens}")
-            print(f"Total completion tokens: {total_completion_tokens}")
-            print("")
 
             tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, vision_model=vision_model)
             total_vision_prompt_tokens += additional_vision_prompt_tokens
@@ -284,6 +281,10 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
                     raise Exception("Too many consecutive failures. Exiting.")
             else:
                 num_consecutive_failures = 0
+
+            print(f"Total prompt tokens: {total_prompt_tokens} + {total_vision_prompt_tokens}")
+            print(f"Total completion tokens: {total_completion_tokens} + {total_vision_completion_tokens}")
+            print("")
 
             if tool_result_text == "TASK_COMPLETE":
                 if log_file_handle:
