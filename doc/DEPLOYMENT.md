@@ -45,13 +45,15 @@ This document outlines the steps to deploy minicline to PyPI.
 
 ## Post-Deployment
 
-1. Create and push a git tag for the release:
+1. Add and commit changes to the repository:
+
+2. Create and push a git tag for the release:
    ```bash
    git tag vX.Y.Z
    git push origin vX.Y.Z
    ```
 
-2. Clean up build artifacts:
+3. Clean up build artifacts:
    ```bash
    rm -rf build/ dist/ *.egg-info/
    ```
