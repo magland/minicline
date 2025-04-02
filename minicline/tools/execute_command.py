@@ -1,6 +1,10 @@
 """Tool for executing system commands."""
 
+import os
+import select
+import signal
 import subprocess
+import time
 from typing import Tuple
 
 def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool, timeout: int = 60) -> Tuple[str, str]:
@@ -46,25 +50,74 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
     try:
         # Run command and capture output
         process = None
+        stdout = ""
+        stderr = ""
         try:
+            # Start process in its own process group so we can kill it and its children
             process = subprocess.Popen(
                 command,
                 shell=True,
                 cwd=cwd,
                 text=True,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
+                preexec_fn=os.setsid  # Create new process group
             )
-            stdout, stderr = process.communicate(timeout=timeout if timeout > 0 else None)
+
+            # Use select to handle output while checking for timeout
+            start_time = time.time()
+            reads = []
+            if process and process.stdout:
+                reads.append(process.stdout.fileno())
+            if process and process.stderr:
+                reads.append(process.stderr.fileno())
+
+            while True:
+                # Check if process has finished
+                if process.poll() is not None:
+                    break
+
+                # Check for timeout
+                if timeout > 0 and time.time() - start_time > timeout:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)  # Kill process group
+                    time.sleep(0.1)  # Give process time to terminate
+                    if process.poll() is None:  # If still running
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)  # Force kill
+                    return tool_call_summary, f"Command timed out after {timeout} seconds and was forcefully terminated"
+
+                # Read available output
+                if reads:  # Only try to read if we have file descriptors
+                    readable, _, _ = select.select(reads, [], [], 0.1)  # 0.1s timeout
+                    for fd in readable:
+                        if process.stdout and fd == process.stdout.fileno():
+                            chunk = os.read(fd, 4096)  # Read raw bytes
+                            if chunk:
+                                output = chunk.decode()
+                                stdout += output
+                                print(output, end="", flush=True)
+                        if process.stderr and fd == process.stderr.fileno():
+                            chunk = os.read(fd, 4096)  # Read raw bytes
+                            if chunk:
+                                output = chunk.decode()
+                                stderr += output
+                                print(output, end="", flush=True)
+
+            # Get final output and return code
+            final_stdout, final_stderr = process.communicate()
+            stdout += final_stdout
+            stderr += final_stderr
             returncode = process.returncode
-        except subprocess.TimeoutExpired:
-            if process:
-                process.kill()  # Force kill the process
+
+        except Exception as e:
+            if process and process.poll() is None:
                 try:
-                    process.communicate()  # Clean up any remaining output
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    time.sleep(0.1)
+                    if process.poll() is None:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 except:
                     pass
-            return tool_call_summary, f"Command timed out after {timeout} seconds and was forcefully terminated"
+            raise e
 
         # Format output including both stdout and stderr
         output_parts = []
