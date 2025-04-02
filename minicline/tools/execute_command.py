@@ -83,7 +83,13 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
                     time.sleep(0.1)  # Give process time to terminate
                     if process.poll() is None:  # If still running
                         os.killpg(os.getpgid(process.pid), signal.SIGKILL)  # Force kill
-                    return tool_call_summary, f"Command timed out after {timeout} seconds and was forcefully terminated"
+                    # Format timeout output including captured stdout/stderr
+                    output_parts = [f"Command timed out after {timeout} seconds and was forcefully terminated"]
+                    if stdout:
+                        output_parts.append(f"STDOUT (partial):\n{stdout}")
+                    if stderr:
+                        output_parts.append(f"STDERR (partial):\n{stderr}")
+                    return tool_call_summary, "\n".join(output_parts)
 
                 # Read available output
                 if reads:  # Only try to read if we have file descriptors

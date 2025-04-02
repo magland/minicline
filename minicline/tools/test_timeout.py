@@ -54,6 +54,11 @@ def run_test(name: str, command: str, timeout: int, expected_timeout: bool = Fal
     if expected_timeout:
         assert "timed out" in result.lower(), "Expected timeout but process completed"
         assert duration < timeout + 1, f"Process ran longer than timeout: {duration:.2f}s vs {timeout}s timeout"
+        # Also verify that we capture output when timing out
+        if "stdout" in command or "mixed" in command:
+            assert "STDOUT (partial):" in result, "Expected partial stdout in timeout result"
+        if "mixed" in command:
+            assert "STDERR (partial):" in result, "Expected partial stderr in timeout result"
     else:
         assert "timed out" not in result.lower(), "Unexpected timeout"
 
