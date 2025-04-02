@@ -45,29 +45,38 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
 
     try:
         # Run command and capture output
+        process = None
         try:
-            result = subprocess.run(
+            process = subprocess.Popen(
                 command,
                 shell=True,
                 cwd=cwd,
                 text=True,
-                capture_output=True,
-                timeout=timeout if timeout > 0 else None
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
+            stdout, stderr = process.communicate(timeout=timeout if timeout > 0 else None)
+            returncode = process.returncode
         except subprocess.TimeoutExpired:
-            return tool_call_summary, f"Command timed out after {timeout} seconds"
+            if process:
+                process.kill()  # Force kill the process
+                try:
+                    process.communicate()  # Clean up any remaining output
+                except:
+                    pass
+            return tool_call_summary, f"Command timed out after {timeout} seconds and was forcefully terminated"
 
         # Format output including both stdout and stderr
         output_parts = []
-        if result.stdout:
-            output_parts.append(f"STDOUT:\n{result.stdout}")
-        if result.stderr:
-            output_parts.append(f"STDERR:\n{result.stderr}")
+        if stdout:
+            output_parts.append(f"STDOUT:\n{stdout}")
+        if stderr:
+            output_parts.append(f"STDERR:\n{stderr}")
 
-        if result.returncode == 0:
+        if returncode == 0:
             output_parts.insert(0, "Command executed successfully")
         else:
-            output_parts.insert(0, f"Command failed with exit code {result.returncode}")
+            output_parts.insert(0, f"Command failed with exit code {returncode}")
 
         return tool_call_summary, "\n".join(output_parts)
 

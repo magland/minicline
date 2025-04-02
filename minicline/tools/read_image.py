@@ -5,13 +5,13 @@ from typing import Tuple, Union, List, Dict, Any
 import base64
 from ..completion.run_completion import run_completion
 
-def read_image(path: str, *, instructions: Union[str, None], cwd: str, model: Union[str, None]) -> Tuple[str, str, Union[str, None], int, int]:
+def read_image(path: str, *, instructions: Union[str, None], cwd: str, vision_model: Union[str, None]) -> Tuple[str, str, Union[str, None], int, int]:
     """Read the contents of a file.
 
     Args:
         path: Path to the PNG file to read (relative to cwd)
         cwd: Current working directory
-        model: AI model to use for image analysis
+        vision_model: AI model to use for image analysis
         instructions: Instructions for the AI model for image analysis
 
     Returns:
@@ -33,8 +33,8 @@ def read_image(path: str, *, instructions: Union[str, None], cwd: str, model: Un
             data = f.read()
             data_base64 = base64.b64encode(data).decode('utf-8')
             data_url = f"data:image/png;base64,{data_base64}"
-            if model:
-                ai_description, prompt_tokens, completion_tokens = _get_ai_description(data_url, model=model, instructions=instructions)
+            if vision_model:
+                ai_description, prompt_tokens, completion_tokens = _get_ai_description(data_url, vision_model=vision_model, instructions=instructions)
             else:
                 ai_description = None
             text = f'The image for {rel_file_path} is attached.'
@@ -46,12 +46,12 @@ def read_image(path: str, *, instructions: Union[str, None], cwd: str, model: Un
         return tool_call_summary, f"ERROR READING FILE {path}: {str(e)}", None, prompt_tokens, completion_tokens
 
 
-def _get_ai_description(data_url: str, *, model: str, instructions: Union[str, None]) -> Tuple[str, int, int]:
+def _get_ai_description(data_url: str, *, vision_model: str, instructions: Union[str, None]) -> Tuple[str, int, int]:
     """Get AI description for the image.
 
     Args:
         data_url: Base64-encoded PNG image data URL
-        model: AI model to use
+        vision_model: AI model to use
         instructions: Instructions for the AI model
 
     Returns:
@@ -74,5 +74,5 @@ def _get_ai_description(data_url: str, *, model: str, instructions: Union[str, N
             "content": content
         }
     ]
-    content, _, prompt_tokens, completion_tokens = run_completion(messages, model=model)  # type: ignore
+    content, _, prompt_tokens, completion_tokens = run_completion(messages, model=vision_model)  # type: ignore
     return content, prompt_tokens, completion_tokens  # type: ignore

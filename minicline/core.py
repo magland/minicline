@@ -3,6 +3,8 @@ import sys
 from typing import List, Dict, Any, Optional, Tuple, Union
 from pathlib import Path
 
+from attr import dataclass
+
 from .completion.run_completion import run_completion
 from .tools.read_file import read_file
 from .tools.read_image import read_image
@@ -81,7 +83,7 @@ def parse_tool_use_call(content: str) -> Tuple[Optional[str], Union[str, None], 
         params[param_name] = param_value
     return thinking_content, tool_name, params
 
-def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool, model: str) -> Tuple[str, str, Union[str, None], bool, int, int]:
+def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool, vision_model: str) -> Tuple[str, str, Union[str, None], bool, int, int]:
     """Execute a tool and return a tuple of (tool_call_summary, result_text)."""
 
     # Tool implementations
@@ -90,7 +92,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
         return summary, text, None, True, 0, 0
 
     if tool_name == "read_image":
-        summary, text, image_data_url, pt, ct = read_image(params['path'], model=model, instructions=params.get('instructions', None), cwd=cwd)
+        summary, text, image_data_url, pt, ct = read_image(params['path'], vision_model=vision_model, instructions=params.get('instructions', None), cwd=cwd)
         return summary, text, image_data_url, True, pt, ct
 
     elif tool_name == "write_to_file":
@@ -179,13 +181,21 @@ class TeeOutput:
         if self.log_file:
             self.log_file.flush()
 
-def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False):
+@dataclass
+class PerformTaskResult:
+    total_prompt_tokens: int
+    total_completion_tokens: int
+    total_vision_prompt_tokens: int
+    total_vision_completion_tokens: int
+
+def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, vision_model: str | None=None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False) -> PerformTaskResult:
     """Perform a task based on the given instructions.
 
     Args:
         instructions: The task instructions
         cwd: Optional working directory for the task
         model: Optional model to use for completion
+        vision_model: Optional model to use for vision tasks
         log_file: Optional file path to write verbose logs to
         auto: Whether to run in automatic mode where no user input is required and all actions proposed by the AI are taken (except when commands require approval and approve_all_commands is False)
         approve_all_commands: Whether to automatically approve all commands that require approval
@@ -199,6 +209,9 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
 
     if not model:
         model = "google/gemini-2.0-flash-001"
+
+    if not vision_model:
+        vision_model = model
 
     # Initialize conversation with system prompt
     system_prompt = read_system_prompt(cwd=cwd, auto=auto)
@@ -216,6 +229,8 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
 
     total_prompt_tokens = 0
     total_completion_tokens = 0
+    total_vision_prompt_tokens = 0
+    total_vision_completion_tokens = 0
 
     # Open log file if specified and set up output redirection
     log_file_handle = open(log_file, 'w') if log_file else None
@@ -260,9 +275,9 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             print(f"Total completion tokens: {total_completion_tokens}")
             print("")
 
-            tool_call_summary, tool_result_text, image_data_url, handled, additional_prompt_tokens, additional_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, model=model)
-            total_prompt_tokens += additional_prompt_tokens
-            total_completion_tokens += additional_completion_tokens
+            tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, vision_model=vision_model)
+            total_vision_prompt_tokens += additional_vision_prompt_tokens
+            total_vision_completion_tokens += additional_vision_completion_tokens
             if not handled:
                 num_consecutive_failures += 1
                 if num_consecutive_failures > 3:
@@ -302,7 +317,12 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             sys.stdout = original_stdout
             log_file_handle.close()
 
-    return total_prompt_tokens, total_completion_tokens
+    return PerformTaskResult(
+        total_prompt_tokens=total_prompt_tokens,
+        total_completion_tokens=total_completion_tokens,
+        total_vision_prompt_tokens=total_vision_prompt_tokens,
+        total_vision_completion_tokens=total_vision_completion_tokens
+    )
 
 def get_base_env(*, cwd: str) -> str:
     # Get list of files using breadth-first search, limited to certain number of files
