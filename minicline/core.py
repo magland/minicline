@@ -19,7 +19,7 @@ import os
 
 def read_system_prompt(*, cwd: str | None, auto: bool = False) -> str:
     """Read and process the system prompt template."""
-    template_path = Path(__file__).parent / "templates" / "system_prompt.md"
+    template_path = Path(__file__).parent / "templates" / "system_prompt.txt"
     with open(template_path, "r") as f:
         content = f.read()
 
