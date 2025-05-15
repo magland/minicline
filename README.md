@@ -40,6 +40,9 @@ minicline perform-task --auto "your instructions here"
 
 # Automatically approve all commands that are deemed require user approval
 minicline perform-task --auto --approve-all-commands "your instructions here"
+
+# Run commands directly on the host system (not recommended)
+minicline perform-task --no-container "your instructions here"
 ```
 
 From Python:
