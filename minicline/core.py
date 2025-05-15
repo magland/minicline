@@ -2,8 +2,7 @@ import re
 import sys
 from typing import List, Dict, Any, Optional, Tuple, Union
 from pathlib import Path
-
-from attr import dataclass
+from dataclasses import dataclass
 
 from .completion.run_completion import run_completion
 from .tools.read_file import read_file
