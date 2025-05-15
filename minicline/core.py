@@ -86,83 +86,89 @@ def parse_tool_use_call(content: str) -> Tuple[Optional[str], Union[str, None], 
 def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool, vision_model: str) -> Tuple[str, str, Union[str, None], bool, int, int]:
     """Execute a tool and return a tuple of (tool_call_summary, result_text)."""
 
-    # Tool implementations
-    if tool_name == "read_file":
-        summary, text = read_file(params['path'], cwd=cwd)
-        return summary, text, None, True, 0, 0
+    try:
+        # Tool implementations
+        if tool_name == "read_file":
+            summary, text = read_file(params['path'], cwd=cwd)
+            return summary, text, None, True, 0, 0
 
-    if tool_name == "read_image":
-        summary, text, image_data_url, pt, ct = read_image(params['path'], vision_model=vision_model, instructions=params.get('instructions', None), cwd=cwd)
-        return summary, text, image_data_url, True, pt, ct
+        if tool_name == "read_image":
+            summary, text, image_data_url, pt, ct = read_image(params['path'], vision_model=vision_model, instructions=params.get('instructions', None), cwd=cwd)
+            return summary, text, image_data_url, True, pt, ct
 
-    elif tool_name == "write_to_file":
-        summary, text = write_to_file(
-            params['path'],
-            params['content'],
-            cwd=cwd,
-            auto=auto
-        )
-        return summary, text, None, True, 0, 0
+        elif tool_name == "write_to_file":
+            summary, text = write_to_file(
+                params['path'],
+                params['content'],
+                cwd=cwd,
+                auto=auto
+            )
+            return summary, text, None, True, 0, 0
 
-    elif tool_name == "replace_in_file":
-        summary, text = replace_in_file(
-            params['path'],
-            params['diff'],
-            cwd=cwd,
-            auto=auto
-        )
-        return summary, text, None, True, 0, 0
+        elif tool_name == "replace_in_file":
+            summary, text = replace_in_file(
+                params['path'],
+                params['diff'],
+                cwd=cwd,
+                auto=auto
+            )
+            return summary, text, None, True, 0, 0
 
-    elif tool_name == "search_files":
-        summary, text = search_files(
-            params['path'],
-            params['regex'],
-            params.get('file_pattern'),
-            cwd=cwd
-        )
-        return summary, text, None, True, 0, 0
+        elif tool_name == "search_files":
+            summary, text = search_files(
+                params['path'],
+                params['regex'],
+                params.get('file_pattern'),
+                cwd=cwd
+            )
+            return summary, text, None, True, 0, 0
 
-    elif tool_name == "execute_command":
-        timeout = int(params.get('timeout', 60))  # Default to 60 seconds if not provided
-        summary, text = execute_command(
-            params['command'],
-            params['requires_approval'],
-            cwd=cwd,
-            auto=auto,
-            approve_all_commands=approve_all_commands,
-            timeout=timeout
-        )
-        return summary, text, None, True, 0, 0
+        elif tool_name == "execute_command":
+            timeout = int(params.get('timeout', 60))  # Default to 60 seconds if not provided
+            summary, text = execute_command(
+                params['command'],
+                params['requires_approval'],
+                cwd=cwd,
+                auto=auto,
+                approve_all_commands=approve_all_commands,
+                timeout=timeout
+            )
+            return summary, text, None, True, 0, 0
 
-    elif tool_name == "list_files":
-        summary, text = list_files(
-            params['path'],
-            params.get('recursive', False),
-            cwd=cwd
-        )
-        return summary, text, None, True, 0, 0
+        elif tool_name == "list_files":
+            summary, text = list_files(
+                params['path'],
+                params.get('recursive', False),
+                cwd=cwd
+            )
+            return summary, text, None, True, 0, 0
 
-    elif tool_name == "ask_followup_question":
-        if auto:
-            # even though the system message doesn't provide this option, it's possible
-            # that the AI knows about it anyway. So, let's just reply as appropriate
-            return "ask_followup_question", "The user is not able to answer questions because we are in auto mode", None, False, 0, 0
-        summary, text = ask_followup_question(
-            params['question'],
-            params.get('options')
-        )
-        return summary, text, None, True, 0, 0
+        elif tool_name == "ask_followup_question":
+            if auto:
+                # even though the system message doesn't provide this option, it's possible
+                # that the AI knows about it anyway. So, let's just reply as appropriate
+                return "ask_followup_question", "The user is not able to answer questions because we are in auto mode", None, False, 0, 0
+            summary, text = ask_followup_question(
+                params['question'],
+                params.get('options')
+            )
+            return summary, text, None, True, 0, 0
 
-    elif tool_name == "attempt_completion":
-        summary, text = attempt_completion(
-            params['result'],
-            auto=auto
-        )
-        return summary, text, None, True, 0, 0
+        elif tool_name == "attempt_completion":
+            summary, text = attempt_completion(
+                params['result'],
+                auto=auto
+            )
+            return summary, text, None, True, 0, 0
 
-    else:
-        summary = f"Unknown tool '{tool_name}'"
-        return summary, "No implementation available", None, False, 0, 0
+        else:
+            summary = f"Unknown tool '{tool_name}'"
+            return summary, "No implementation available", None, False, 0, 0
+    except Exception as e:
+        # Handle exceptions and return error message
+        summary = f"Error executing tool '{tool_name}'"
+        text = f"ERROR: {str(e)}"
+        return summary, text, None, False, 0, 0
 
 class TeeOutput:
     """Class that duplicates output to both console and log file."""

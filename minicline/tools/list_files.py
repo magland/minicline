@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Tuple
+from .is_within_directory import is_within_directory
 
 def list_files(path: str, recursive: bool = False, *, cwd: str) -> Tuple[str, str]:
     """List contents of a directory.
@@ -16,6 +17,10 @@ def list_files(path: str, recursive: bool = False, *, cwd: str) -> Tuple[str, st
         - tool_call_summary is a string describing the tool call
         - result_text is the directory listing or error message
     """
+    # For security reasons, check if the file is within the current working directory
+    if not is_within_directory(path, cwd):
+        raise ValueError(f"ERROR: {path} is not within the current working directory {cwd}")
+
     tool_call_summary = f"list_files for '{path}'"
     if recursive:
         tool_call_summary += " (recursive)"

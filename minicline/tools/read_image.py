@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Tuple, Union, List, Dict, Any
 import base64
 from ..completion.run_completion import run_completion
+from .is_within_directory import is_within_directory
 
 def read_image(path: str, *, instructions: Union[str, None], cwd: str, vision_model: Union[str, None]) -> Tuple[str, str, Union[str, None], int, int]:
     """Read the contents of a file.
@@ -19,6 +20,10 @@ def read_image(path: str, *, instructions: Union[str, None], cwd: str, vision_mo
         - tool_call_summary is a string describing the tool call
         - data_url is a base64-encoded PNG image data URL
     """
+    # For security reasons, check if the file is within the current working directory
+    if not is_within_directory(path, cwd):
+        raise ValueError(f"ERROR: {path} is not within the current working directory {cwd}")
+
     tool_call_summary = f"read_image for '{path}'"
 
     prompt_tokens = 0

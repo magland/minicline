@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 from typing import Tuple, Optional
+from .is_within_directory import is_within_directory
 
 def search_files(path: str, regex: str, file_pattern: Optional[str] = None, *, cwd: str) -> Tuple[str, str]:
     """Search files in a directory for a regex pattern.
@@ -18,6 +19,10 @@ def search_files(path: str, regex: str, file_pattern: Optional[str] = None, *, c
         - tool_call_summary is a string describing the tool call
         - result_text contains the search results with context
     """
+    # For security reasons, check if the file is within the current working directory
+    if not is_within_directory(path, cwd):
+        raise ValueError(f"ERROR: {path} is not within the current working directory {cwd}")
+
     tool_call_summary = f"search_files in '{path}' for pattern '{regex}'"
     if file_pattern:
         tool_call_summary += f" (files matching '{file_pattern}')"

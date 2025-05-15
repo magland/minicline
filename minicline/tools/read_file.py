@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Tuple
+from .is_within_directory import is_within_directory
 
 def read_file(path: str, *, cwd: str) -> Tuple[str, str]:
     """Read the contents of a file.
@@ -15,6 +16,10 @@ def read_file(path: str, *, cwd: str) -> Tuple[str, str]:
         - tool_call_summary is a string describing the tool call
         - result_text is either the file contents or an error message
     """
+    # For security reasons, check if the file is within the current working directory
+    if not is_within_directory(path, cwd):
+        raise ValueError(f"ERROR: {path} is not within the current working directory {cwd}")
+
     tool_call_summary = f"read_file for '{path}'"
 
     try:

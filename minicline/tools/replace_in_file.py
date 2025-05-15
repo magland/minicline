@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Tuple
 import re
+from .is_within_directory import is_within_directory
 
 def parse_search_replace_blocks(diff: str) -> list[tuple[str, str]]:
     """Extract search/replace blocks from diff content.
@@ -37,6 +38,10 @@ def replace_in_file(path: str, diff: str, *, cwd: str, auto: bool) -> Tuple[str,
         - tool_call_summary is a string describing the tool call
         - result_text indicates success or contains error message
     """
+    # For security reasons, check if the file is within the current working directory
+    if not is_within_directory(path, cwd):
+        raise ValueError(f"ERROR: {path} is not within the current working directory {cwd}")
+
     tool_call_summary = f"replace_in_file for '{path}'"
 
     print("================================")
