@@ -83,7 +83,7 @@ def parse_tool_use_call(content: str) -> Tuple[Optional[str], Union[str, None], 
         params[param_name] = param_value
     return thinking_content, tool_name, params
 
-def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool, vision_model: str) -> Tuple[str, str, Union[str, None], bool, int, int]:
+def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool, vision_model: str, no_container: bool) -> Tuple[str, str, Union[str, None], bool, int, int]:
     """Execute a tool and return a tuple of (tool_call_summary, result_text)."""
 
     try:
@@ -131,7 +131,8 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
                 cwd=cwd,
                 auto=auto,
                 approve_all_commands=approve_all_commands,
-                timeout=timeout
+                timeout=timeout,
+                no_container=no_container
             )
             return summary, text, None, True, 0, 0
 
@@ -194,7 +195,7 @@ class PerformTaskResult:
     total_vision_prompt_tokens: int
     total_vision_completion_tokens: int
 
-def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, vision_model: str | None=None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False) -> PerformTaskResult:
+def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, vision_model: str | None=None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False, no_container: bool = False) -> PerformTaskResult:
     """Perform a task based on the given instructions.
 
     Args:
@@ -205,6 +206,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         log_file: Optional file path to write verbose logs to
         auto: Whether to run in automatic mode where no user input is required and all actions proposed by the AI are taken (except when commands require approval and approve_all_commands is False)
         approve_all_commands: Whether to automatically approve all commands that require approval
+        no_container: Whether to run commands without a container (default: False)
 
     Returns:
         Tuple of (total_prompt_tokens
@@ -278,7 +280,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             print(f"\nTool: {tool_name}")
             print(f"Params: {params}")
 
-            tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, vision_model=vision_model)
+            tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, vision_model=vision_model, no_container=no_container)
             total_vision_prompt_tokens += additional_vision_prompt_tokens
             total_vision_completion_tokens += additional_vision_completion_tokens
             if not handled:

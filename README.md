@@ -63,15 +63,32 @@ perform_task(instructions, cwd="/path/to/working/directory", auto=True, approve_
 
 MiniCline performs all operations within a specified working directory. File paths and commands are interpreted relative to this directory. When using the CLI, the working directory defaults to the current directory. When using the Python API, specify the working directory using the `cwd` parameter.
 
-## Automation Options
+## Automation and Security Options
 
-The CLI supports two automation flags that can streamline task execution:
+The CLI supports various flags and environment variables that control task execution and security:
+
+### Command Execution Modes
 
 * `--auto`: Enables automatic mode where no user input is required. The AI will proceed with all actions without asking for confirmation, except for commands that require approval (unless `--approve-all-commands` is also set).
 
 * `--approve-all-commands`: Automatically approves all commands that would normally require manual approval. This includes potentially impactful operations like installing packages, modifying system files, or running network operations.
 
-Use these options with caution, especially in production environments, as they bypass normal safety prompts and confirmations.
+### Container Security
+
+By default, minicline executes commands within a container for security. This prevents unauthorized access to the host system while maintaining a controlled environment:
+
+* Commands run inside the container can only access files in the current working directory, as this is the only directory mounted from the host system
+* minicline itself can read and write files outside the container, but only within the current working directory
+* File system isolation prevents commands from accessing sensitive host system files
+* The `--no-container` flag disables container usage and runs commands directly on the host system. This option is dangerous and should be used with extreme caution, especially when combined with `--auto` or `--approve-all-commands`
+
+### Environment Variables
+
+* `MINICLINE_DOCKER_IMAGE`: Specifies the Docker image to use for command execution. Defaults to `jupyter/scipy-notebook:latest`.
+
+* `MINICLINE_USE_APPTAINER`: Set to "true" to use Apptainer (formerly Singularity) instead of Docker for containerization.
+
+Use these options with caution, especially in production environments, as they can affect system security and bypass normal safety prompts and confirmations.
 
 ## Some notes about changes to the system prompt relative to Cline
 

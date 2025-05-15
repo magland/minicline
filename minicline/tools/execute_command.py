@@ -7,7 +7,7 @@ import subprocess
 import time
 from typing import Tuple
 
-def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool, timeout: int = 60) -> Tuple[str, str]:
+def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool, timeout: int = 60, no_container: bool) -> Tuple[str, str]:
     """Execute a system command.
 
     Args:
@@ -23,6 +23,13 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
         - tool_call_summary is a string describing the tool call
         - result_text contains the command output or error message
     """
+    if not no_container:
+        default_docker_image = "jupyter/scipy-notebook:latest"
+        docker_image = os.getenv("MINICLINE_DOCKER_IMAGE", default_docker_image)
+    else:
+        docker_image = None
+    use_apptainer = os.getenv("MINICLINE_USE_APPTAINER", "false").lower() == "true"
+
     tool_call_summary = f"execute_command '{command}'"
     if requires_approval:
         tool_call_summary += " (requires approval)"
@@ -30,6 +37,11 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
     print("================================")
     print("Command to be executed")
     print(command)
+    if docker_image:
+        if use_apptainer:
+            print(f"Using apptainer exec with docker image: {docker_image}")
+        else:
+            print(f"Using docker image: {docker_image}")
     print("================================")
 
     ask_user = True
@@ -52,11 +64,51 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
         process = None
         stdout = ""
         stderr = ""
+        use_docker = docker_image is not None
+        container_name = None
         try:
+            if use_docker:
+                if use_apptainer:
+                    # Construct the apptainer command
+                    apptainer_cmd = [
+                        "apptainer", "exec",
+                        "--bind", f"{cwd}:{cwd}",  # Mount current directory
+                        "--pwd", cwd,  # Set working directory
+                        f"docker://{docker_image}",
+                        "/bin/sh", "-c", command
+                    ]
+                    shell = False
+                    full_command = apptainer_cmd
+                    container_name = None
+                else:
+                    # Pull the docker image first
+                    print(f"Pulling docker image: {docker_image}")
+                    subprocess.run(["docker", "pull", docker_image], check=True)
+
+                    # Generate a unique container name
+                    container_name = f"minicline_sandbox_{int(time.time())}"
+                    # Construct the docker command
+                    docker_cmd = [
+                        "docker", "run",
+                        "--rm",  # Auto-remove container when it exits
+                        "--name", container_name,
+                        "-v", f"{cwd}:{cwd}",  # Mount current directory
+                        "-w", cwd,  # Set working directory
+                        "-t",  # Allocate a pseudo-TTY
+                        docker_image,
+                        "/bin/sh", "-c", command
+                    ]
+                    shell = False
+                    full_command = docker_cmd
+            else:
+                # If not using docker, run the command directly
+                shell = True
+                full_command = command
+
             # Start process in its own process group so we can kill it and its children
             process = subprocess.Popen(
-                command,
-                shell=True,
+                full_command,
+                shell=shell,
                 cwd=cwd,
                 text=True,
                 stdout=subprocess.PIPE,
@@ -117,6 +169,11 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
         except Exception as e:
             if process and process.poll() is None:
                 try:
+                    # If using docker and we have a container name, stop it first
+                    if use_docker and not use_apptainer and container_name is not None:
+                        subprocess.run(["docker", "stop", str(container_name)], check=False, capture_output=True)
+                    time.sleep(0.1)
+                    # Then kill the process group
                     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                     time.sleep(0.1)
                     if process.poll() is None:
