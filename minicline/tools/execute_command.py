@@ -7,7 +7,7 @@ import subprocess
 import time
 from typing import Tuple
 
-def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool, timeout: int = 60, no_container: bool) -> Tuple[str, str]:
+def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool, timeout: int = 60, no_container: bool, docker_container: str | None = None) -> Tuple[str, str]:
     """Execute a system command.
 
     Args:
@@ -23,12 +23,23 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
         - tool_call_summary is a string describing the tool call
         - result_text contains the command output or error message
     """
-    if not no_container:
+    # Determine execution mode
+    if docker_container:
+        # Use persistent container
+        use_persistent_container = True
+        docker_image = None
+        use_apptainer = False
+    elif not no_container:
+        # Use temporary container (original behavior)
+        use_persistent_container = False
         default_docker_image = "jupyter/scipy-notebook:latest"
         docker_image = os.getenv("MINICLINE_DOCKER_IMAGE", default_docker_image)
+        use_apptainer = os.getenv("MINICLINE_USE_APPTAINER", "false").lower() == "true"
     else:
+        # No container
+        use_persistent_container = False
         docker_image = None
-    use_apptainer = os.getenv("MINICLINE_USE_APPTAINER", "false").lower() == "true"
+        use_apptainer = False
 
     tool_call_summary = f"execute_command '{command}'"
     if requires_approval:
@@ -66,8 +77,25 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
         stderr = ""
         use_docker = docker_image is not None
         container_name = None
+        full_command = None
+        shell = False
         try:
-            if use_docker:
+            if use_persistent_container and docker_container:
+                # Use persistent container via DockerManager
+                from ..docker_manager import DockerManager
+                manager = DockerManager(cwd)
+
+                # Check if container exists and is running
+                if not manager.container_exists(docker_container):
+                    return tool_call_summary, f"ERROR: Container '{docker_container}' does not exist or is not running. Please start it first with 'minicline docker start'."
+
+                print(f"Using persistent container: {docker_container}")
+
+                # Execute command in persistent container - this returns a Popen object
+                process = manager.execute_in_container(docker_container, command)
+                container_name = docker_container
+
+            elif use_docker:
                 if use_apptainer:
                     # Construct the apptainer command
                     apptainer_cmd = [
@@ -105,23 +133,31 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
                 shell = True
                 full_command = command
 
-            # Start process in its own process group so we can kill it and its children
-            process = subprocess.Popen(
-                full_command,
-                shell=shell,
-                cwd=cwd,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                preexec_fn=os.setsid  # Create new process group
-            )
+            # For persistent containers, process is already created by DockerManager
+            if not use_persistent_container:
+                if full_command is None:
+                    return tool_call_summary, "ERROR: No command to execute"
+                # Start process in its own process group so we can kill it and its children
+                process = subprocess.Popen(
+                    full_command,
+                    shell=shell,
+                    cwd=cwd,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    preexec_fn=os.setsid  # Create new process group
+                )
+
+            # Ensure we have a process to work with
+            if process is None:
+                return tool_call_summary, "ERROR: Failed to create process"
 
             # Use select to handle output while checking for timeout
             start_time = time.time()
             reads = []
-            if process and process.stdout:
+            if process.stdout:
                 reads.append(process.stdout.fileno())
-            if process and process.stderr:
+            if process.stderr:
                 reads.append(process.stderr.fileno())
 
             while True:
