@@ -211,6 +211,7 @@ class PerformTaskResult:
     total_completion_tokens: int
     total_vision_prompt_tokens: int
     total_vision_completion_tokens: int
+    total_cost: float
 
 def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, vision_model: str | None=None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False, no_container: bool = False, rules: Path | None = None) -> PerformTaskResult:
     """Perform a task based on the given instructions.
@@ -257,6 +258,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
     total_completion_tokens = 0
     total_vision_prompt_tokens = 0
     total_vision_completion_tokens = 0
+    total_cost = 0
 
     # Open log file if specified and set up output redirection
     log_file_handle = open(log_file, 'w') if log_file else None
@@ -273,13 +275,14 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         # Main conversation loop
         while True:
             # Get assistant's response
-            content, messages, prompt_tokens, completion_tokens = run_completion_with_retries(
+            content, messages, prompt_tokens, completion_tokens, cost = run_completion_with_retries(
                 messages=messages,
                 model=model,
                 num_retries=5
             ) # type: ignore
             total_prompt_tokens += prompt_tokens
             total_completion_tokens += completion_tokens
+            total_cost += cost
 
             # Parse and execute tool if found
             thinking_content, tool_name, params = parse_tool_use_call(content) # type: ignore
@@ -311,6 +314,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
 
             print(f"Total prompt tokens: {total_prompt_tokens} + {total_vision_prompt_tokens}")
             print(f"Total completion tokens: {total_completion_tokens} + {total_vision_completion_tokens}")
+            print(f"Total cost: {total_cost}")
             print("")
 
             if tool_result_text == "TASK_COMPLETE":
@@ -349,7 +353,8 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         total_prompt_tokens=total_prompt_tokens,
         total_completion_tokens=total_completion_tokens,
         total_vision_prompt_tokens=total_vision_prompt_tokens,
-        total_vision_completion_tokens=total_vision_completion_tokens
+        total_vision_completion_tokens=total_vision_completion_tokens,
+        total_cost=total_cost
     )
 
 def get_base_env(*, cwd: str) -> str:

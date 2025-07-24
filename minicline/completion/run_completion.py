@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Tuple
 import requests
 import os
 from dotenv import load_dotenv
+from time import sleep
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -58,6 +59,7 @@ def run_completion(
 
     total_prompt_tokens = 0
     total_completion_tokens = 0
+    total_cost = 0
 
     while True:
         # Make API request
@@ -75,6 +77,16 @@ def run_completion(
 
         print("Processing response...")
         completion = response.json()
+        get_url = f"https://openrouter.ai/api/v1/generation/?id={completion['id']}"
+        sleep(0.5)
+        for retry in range(3):
+            response2 = requests.get(
+                get_url,
+                headers={"Authorization": f"Bearer {api_key}"})
+            response2_json = response2.json()
+            if "error" in response2_json:
+                sleep(1)
+        total_cost += response2_json["data"]["total_cost"]
         prompt_tokens = completion["usage"]["prompt_tokens"]
         completion_tokens = completion["usage"]["completion_tokens"]
 
@@ -93,4 +105,4 @@ def run_completion(
         }
         conversation_messages.append(current_response)
 
-        return content, conversation_messages, total_prompt_tokens, total_completion_tokens
+        return content, conversation_messages, total_prompt_tokens, total_completion_tokens, total_cost

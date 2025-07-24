@@ -4,7 +4,7 @@ Command-line and Python interface for performing software engineering tasks usin
 
 This package was created during the [Pre-COSYNE Brainhack](https://pre-cosyne-brainhack.github.io/hackathon2025/posts/about/), March 2025, Montreal.
 
-The primary focus is automatic generation of scientific notebooks, targeting projects like [dandi-notebook-gen](https://github.com/magland/dandi-notebook-gen).
+The motivating application is automatic generation of scientific notebooks.
 
 By default, all commands are run in a container for security, mounting only the current working directory. See details below.
 
