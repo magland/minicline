@@ -9,6 +9,7 @@ from .tools.read_file import read_file
 from .tools.read_image import read_image
 from .tools.search_files import search_files
 from .tools.execute_command import execute_command
+from .tools.execute_script import execute_script
 from .tools.list_files import list_files
 from .tools.ask_followup_question import ask_followup_question
 from .tools.write_to_file import write_to_file
@@ -16,7 +17,7 @@ from .tools.replace_in_file import replace_in_file
 from .tools.attempt_completion import attempt_completion
 import os
 
-def read_system_prompt(*, cwd: str | None, auto: bool = False) -> str:
+def read_system_prompt(*, cwd: str | None, auto: bool = False, rules_file: Path | None = None) -> str:
     """Read and process the system prompt template."""
     template_path = Path(__file__).parent / "templates" / "system_prompt.txt"
     with open(template_path, "r") as f:
@@ -40,6 +41,11 @@ def read_system_prompt(*, cwd: str | None, auto: bool = False) -> str:
             '',
             content
         )
+
+    # Add additional rules if provided
+    if rules_file:
+        content += "\n====\n\nADDITIONAL RULES\n\n"
+        content += rules_file.read_text()
 
     return content
 
@@ -135,6 +141,18 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             )
             return summary, text, None, True, 0, 0
 
+        elif tool_name == "execute_script":
+            summary, text = execute_script(
+                params['script'],
+                params['language'],
+                params['requires_approval'],
+                cwd=cwd,
+                auto=auto,
+                approve_all_commands=approve_all_commands,
+                no_container=no_container
+            )
+            return summary, text, None, True, 0, 0
+
         elif tool_name == "list_files":
             summary, text = list_files(
                 params['path'],
@@ -194,7 +212,7 @@ class PerformTaskResult:
     total_vision_prompt_tokens: int
     total_vision_completion_tokens: int
 
-def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, vision_model: str | None=None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False, no_container: bool = False) -> PerformTaskResult:
+def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, vision_model: str | None=None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False, no_container: bool = False, rules: Path | None = None) -> PerformTaskResult:
     """Perform a task based on the given instructions.
 
     Args:
@@ -206,6 +224,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         auto: Whether to run in automatic mode where no user input is required and all actions proposed by the AI are taken (except when commands require approval and approve_all_commands is False)
         approve_all_commands: Whether to automatically approve all commands that require approval
         no_container: Whether to run commands without a container (default: False)
+        rules: Optional file containing additional rules to include in the system prompt
 
     Returns:
         Tuple of (total_prompt_tokens
@@ -215,13 +234,13 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
         cwd = os.getcwd()
 
     if not model:
-        model = "google/gemini-2.0-flash-001"
+        model = "openai/gpt-4.1-mini"
 
     if not vision_model:
         vision_model = model
 
     # Initialize conversation with system prompt
-    system_prompt = read_system_prompt(cwd=cwd, auto=auto)
+    system_prompt = read_system_prompt(cwd=cwd, auto=auto, rules_file=rules)
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": system_prompt}
     ]
@@ -276,8 +295,9 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
             if thinking_content:
                 print(thinking_content)
 
-            print(f"\nTool: {tool_name}")
-            print(f"Params: {params}")
+            if tool_name not in ["attempt_completion", "execute_command", "execute_script", "write_to_file", "replace_in_file"]:
+                print(f"\nTool: {tool_name}")
+                print(f"Params: {params}")
 
             tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, vision_model=vision_model, no_container=no_container)
             total_vision_prompt_tokens += additional_vision_prompt_tokens

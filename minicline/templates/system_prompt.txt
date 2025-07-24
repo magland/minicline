@@ -141,6 +141,21 @@ Array of options here (optional), e.g. ["Option 1", "Option 2", "Option 3"]
 </ask_followup_question>
 === end if not auto ===
 
+## execute_script
+Description: Request to execute a script by writing it to a temporary file and then running it. Currently only supports Python scripts. The script will be written to "_minicline_tmp_script.py" in the current working directory, executed, and then cleaned up automatically.
+Parameters:
+- script: (required) The script content to execute
+- language: (required) The programming language of the script. Currently only 'python' is supported.
+- requires_approval: (required) A boolean indicating whether executing the script requires explicit user approval before execution in case the user has auto-approve mode enabled. Similar to execute_command's requires_approval parameter.
+Usage:
+<execute_script>
+<script>
+print("Hello world!")
+</script>
+<language>python</language>
+<requires_approval>true</requires_approval>
+</execute_script>
+
 ## attempt_completion
 Description: After each tool use, the user will respond with the result of that tool use, i.e. if it succeeded or failed, along with any reasons for failure. Once you've received the results of tool uses and can confirm that the task is complete, use this tool to present the result of your work to the user. Optionally you may provide a CLI command to showcase the result of your work. The user may respond with feedback if they are not satisfied with the result, which you can use to make improvements and try again.
 IMPORTANT NOTE: This tool CANNOT be used until you've confirmed from the user that any previous tool uses were successful. Failure to do so will result in code corruption and system failure. Before using this tool, you must ask yourself in <thinking></thinking> tags if you've confirmed from the user that any previous tool uses were successful. If not, then DO NOT use this tool.

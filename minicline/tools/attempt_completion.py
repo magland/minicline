@@ -18,7 +18,9 @@ def attempt_completion(result: str, auto: bool) -> Tuple[str, str]:
     """
     tool_call_summary = f"attempt_completion"
 
+    print("COMPLETION:")
     print(result)
+    print("")
 
     if not auto:
         question = f"Press ENTER or 'y' to complete task or enter a message to reject this action [y]"
