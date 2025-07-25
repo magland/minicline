@@ -98,9 +98,11 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
             elif use_docker:
                 if use_apptainer:
                     # Construct the apptainer command
+                    # Note: The current working directory is bound at the same path inside the container
+                    # This allows minicline to access and modify files while commands execute in isolation
                     apptainer_cmd = [
                         "apptainer", "exec",
-                        "--bind", f"{cwd}:{cwd}",  # Mount current directory
+                        "--bind", f"{cwd}:{cwd}",  # Bind current directory at same path in container
                         "--pwd", cwd,  # Set working directory
                         f"docker://{docker_image}",
                         "/bin/sh", "-c", command
@@ -116,11 +118,13 @@ def execute_command(command: str, requires_approval: bool, *, cwd: str, auto: bo
                     # Generate a unique container name
                     container_name = f"minicline_sandbox_{int(time.time())}"
                     # Construct the docker command
+                    # Note: The current working directory is mounted at the same path inside the container
+                    # This allows minicline to access and modify files while commands execute in isolation
                     docker_cmd = [
                         "docker", "run",
                         "--rm",  # Auto-remove container when it exits
                         "--name", container_name,
-                        "-v", f"{cwd}:{cwd}",  # Mount current directory
+                        "-v", f"{cwd}:{cwd}",  # Mount current directory at same path in container
                         "-w", cwd,  # Set working directory
                         "-t",  # Allocate a pseudo-TTY
                         docker_image,

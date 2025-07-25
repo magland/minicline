@@ -21,6 +21,11 @@ def docker_start(image: str, name: str | None):
 
     IMAGE: Docker image to use (default: jupyter/scipy-notebook:latest)
 
+    The container will mount the current working directory, making all files
+    in the current directory accessible within the container. This allows
+    minicline to read and write files while commands execute in the isolated
+    container environment.
+
     Returns the container name which can be used with --docker option.
     """
     import os

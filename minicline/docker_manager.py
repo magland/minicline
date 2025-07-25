@@ -17,6 +17,10 @@ class DockerManager:
     def start_container(self, image: str, container_name: Optional[str] = None) -> str:
         """Start a new persistent Docker container.
 
+        The container will mount the current working directory at the same path
+        inside the container, allowing minicline to access and modify files
+        while commands execute in the isolated container environment.
+
         Args:
             image: Docker image to use
             container_name: Optional container name, if not provided will generate one

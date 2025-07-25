@@ -52,6 +52,8 @@ minicline perform-task --docker container-name "your instructions here"
 
 MiniCline supports persistent Docker containers that maintain state between command executions. This is useful when you need to install packages or make changes that should persist across multiple commands.
 
+**Important**: When you start a Docker container using `minicline docker start`, the container will mount your current working directory at the same path inside the container. This means all files in your current directory are accessible within the container, allowing minicline to read and write files while commands execute in the isolated container environment.
+
 ### Starting a Persistent Container
 
 ```bash
