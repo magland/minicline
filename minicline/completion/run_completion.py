@@ -11,7 +11,7 @@ def run_completion(
     messages: List[Dict[str, Any]],
     *,
     model: str
-) -> Tuple[str, List[Dict[str, Any]], int, int]:
+) -> Tuple[str, List[Dict[str, Any]], int, int, float]:
     """Execute an AI completion request using the OpenRouter API
 
     This function manages a conversation with an AI model

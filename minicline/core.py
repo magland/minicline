@@ -88,7 +88,7 @@ def parse_tool_use_call(content: str) -> Tuple[Optional[str], Union[str, None], 
         params[param_name] = param_value
     return thinking_content, tool_name, params
 
-def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool, vision_model: str, no_container: bool) -> Tuple[str, str, Union[str, None], bool, int, int]:
+def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, approve_all_commands: bool, vision_model: str, no_container: bool, docker_container: str | None = None) -> Tuple[str, str, Union[str, None], bool, int, int]:
     """Execute a tool and return a tuple of (tool_call_summary, result_text)."""
 
     try:
@@ -137,7 +137,8 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
                 auto=auto,
                 approve_all_commands=approve_all_commands,
                 timeout=timeout,
-                no_container=no_container
+                no_container=no_container,
+                docker_container=docker_container
             )
             return summary, text, None, True, 0, 0
 
@@ -213,7 +214,7 @@ class PerformTaskResult:
     total_vision_completion_tokens: int
     total_cost: float
 
-def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, vision_model: str | None=None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False, no_container: bool = False, rules: Path | None = None) -> PerformTaskResult:
+def perform_task(instructions: str, *, cwd: str | None = None, model: str | None = None, vision_model: str | None=None, log_file: str | Path | None = None, auto: bool = False, approve_all_commands: bool = False, no_container: bool = False, docker_container: str | None = None, rules: Path | None = None) -> PerformTaskResult:
     """Perform a task based on the given instructions.
 
     Args:
@@ -302,7 +303,7 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
                 print(f"\nTool: {tool_name}")
                 print(f"Params: {params}")
 
-            tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, vision_model=vision_model, no_container=no_container)
+            tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, vision_model=vision_model, no_container=no_container, docker_container=docker_container)
             total_vision_prompt_tokens += additional_vision_prompt_tokens
             total_vision_completion_tokens += additional_vision_completion_tokens
             if not handled:
@@ -415,7 +416,7 @@ def run_completion_with_retries(
         messages: List[Dict[str, Any]], *,
         model: str,
         num_retries: int
-    ) -> Tuple[str, List[Dict[str, Any]], int, int]:
+    ) -> Tuple[str, List[Dict[str, Any]], int, int, float]:
     """Run completion with retries in case of failure."""
     import time
     retry_wait_time = 1

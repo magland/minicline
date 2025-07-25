@@ -43,6 +43,65 @@ minicline perform-task --auto --approve-all-commands "your instructions here"
 
 # Run commands directly on the host system (not recommended)
 minicline perform-task --no-container "your instructions here"
+
+# Use a persistent Docker container
+minicline perform-task --docker container-name "your instructions here"
+```
+
+## Docker Container Management
+
+MiniCline supports persistent Docker containers that maintain state between command executions. This is useful when you need to install packages or make changes that should persist across multiple commands.
+
+**Important**: When you start a Docker container using `minicline docker start`, the container will mount your current working directory at the same path inside the container. This means all files in your current directory are accessible within the container, allowing minicline to read and write files while commands execute in the isolated container environment.
+
+### Starting a Persistent Container
+
+```bash
+# Start a container with the default image (jupyter/scipy-notebook:latest)
+minicline docker start
+
+# Start a container with a specific image
+minicline docker start python:3.11
+
+# Start a container with a custom name
+minicline docker start --name my-container python:3.11
+```
+
+The command will return the container name, which you can use with the `--docker` option.
+
+### Using a Persistent Container
+
+```bash
+# Use the persistent container for task execution
+minicline perform-task --docker container-name "install numpy and create a simple script"
+```
+
+All commands will be executed inside the specified container, and any installations or changes will persist for subsequent commands.
+
+### Managing Containers
+
+```bash
+# List all minicline containers
+minicline docker list
+
+# Stop and remove a container
+minicline docker stop container-name
+```
+
+### Example Workflow
+
+```bash
+# 1. Start a persistent container
+minicline docker start python:3.11
+# Output: Container started successfully!
+# Container name: minicline_persistent_1234567890
+
+# 2. Use the container for tasks that require persistent state
+minicline perform-task --docker minicline_persistent_1234567890 "install pandas and matplotlib"
+minicline perform-task --docker minicline_persistent_1234567890 "create a data analysis script"
+
+# 3. Stop the container when done
+minicline docker stop minicline_persistent_1234567890
 ```
 
 From Python:
