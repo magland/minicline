@@ -6,7 +6,7 @@ from typing import Tuple
 
 from .execute_command import execute_command
 
-def execute_script(script: str, language: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool, no_container: bool) -> Tuple[str, str]:
+def execute_script(script: str, language: str, requires_approval: bool, *, cwd: str, auto: bool, approve_all_commands: bool, no_container: bool, docker_container: str | None = None) -> Tuple[str, str]:
     """Execute a script by writing it to a temporary file and running it.
 
     Args:
@@ -50,7 +50,8 @@ def execute_script(script: str, language: str, requires_approval: bool, *, cwd: 
             cwd=cwd,
             auto=auto,
             approve_all_commands=approve_all_commands,
-            no_container=no_container
+            no_container=no_container,
+            docker_container=docker_container
         )
 
     finally:

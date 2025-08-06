@@ -33,22 +33,24 @@ def read_image(path: str, *, instructions: Union[str, None], cwd: str, vision_mo
         # Convert to absolute path if relative
         file_path = Path(cwd) / path
 
+        cost = 0
         # Read and return contents
-        with open(file_path, 'rb') as f:
+        with (open(file_path, 'rb') as f):
             data = f.read()
             data_base64 = base64.b64encode(data).decode('utf-8')
             data_url = f"data:image/png;base64,{data_base64}"
             if vision_model:
-                ai_description, prompt_tokens, completion_tokens = _get_ai_description(data_url, vision_model=vision_model, instructions=instructions)
+                ai_description, prompt_tokens, completion_tokens, cost = \
+                _get_ai_description(data_url, vision_model=vision_model, instructions=instructions)
             else:
                 ai_description = None
             text = f'The image for {rel_file_path} is attached.'
             if ai_description:
                 text += f' AI description: {ai_description}'
-            return tool_call_summary, text, data_url, prompt_tokens, completion_tokens
+            return tool_call_summary, text, data_url, prompt_tokens, completion_tokens, cost
 
     except Exception as e:
-        return tool_call_summary, f"ERROR READING FILE {path}: {str(e)}", None, prompt_tokens, completion_tokens
+        return tool_call_summary, f"ERROR READING FILE {path}: {str(e)}", None, prompt_tokens, completion_tokens, cost
 
 
 def _get_ai_description(data_url: str, *, vision_model: str, instructions: Union[str, None]) -> Tuple[str, int, int]:
@@ -79,5 +81,5 @@ def _get_ai_description(data_url: str, *, vision_model: str, instructions: Union
             "content": content
         }
     ]
-    content, _, prompt_tokens, completion_tokens = run_completion(messages, model=vision_model)  # type: ignore
-    return content, prompt_tokens, completion_tokens  # type: ignore
+    content, _, prompt_tokens, completion_tokens, total_cost = run_completion(messages, model=vision_model)  # type: ignore
+    return content, prompt_tokens, completion_tokens, total_cost  # type: ignore
