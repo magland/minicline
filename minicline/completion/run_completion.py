@@ -84,7 +84,7 @@ def run_completion(
                 get_url,
                 headers={"Authorization": f"Bearer {api_key}"})
             response2_json = response2.json()
-            if "error" in response2_json:
+            if "error" in response2_json or 'data' not in response2_json:
                 sleep(1)
         total_cost += response2_json["data"]["total_cost"]
         prompt_tokens = completion["usage"]["prompt_tokens"]

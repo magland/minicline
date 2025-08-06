@@ -98,8 +98,8 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             return summary, text, None, True, 0, 0
 
         if tool_name == "read_image":
-            summary, text, image_data_url, pt, ct = read_image(params['path'], vision_model=vision_model, instructions=params.get('instructions', None), cwd=cwd)
-            return summary, text, image_data_url, True, pt, ct
+            summary, text, image_data_url, pt, ct, cost = read_image(params['path'], vision_model=vision_model, instructions=params.get('instructions', None), cwd=cwd)
+            return summary, text, image_data_url, True, pt, ct, cost
 
         elif tool_name == "write_to_file":
             summary, text = write_to_file(
@@ -129,6 +129,8 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
             return summary, text, None, True, 0, 0
 
         elif tool_name == "execute_command":
+            print(docker_container)
+
             timeout = int(params.get('timeout', 60))  # Default to 60 seconds if not provided
             summary, text = execute_command(
                 params['command'],
@@ -150,7 +152,8 @@ def execute_tool(tool_name: str, params: Dict[str, Any], cwd: str, auto: bool, a
                 cwd=cwd,
                 auto=auto,
                 approve_all_commands=approve_all_commands,
-                no_container=no_container
+                no_container=no_container,
+                docker_container=docker_container
             )
             return summary, text, None, True, 0, 0
 
@@ -303,9 +306,16 @@ def perform_task(instructions: str, *, cwd: str | None = None, model: str | None
                 print(f"\nTool: {tool_name}")
                 print(f"Params: {params}")
 
-            tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands, vision_model=vision_model, no_container=no_container, docker_container=docker_container)
+            tool_output = execute_tool(tool_name, params, cwd, auto=auto, approve_all_commands=approve_all_commands,
+                                       vision_model=vision_model, no_container=no_container, docker_container=docker_container)
+            tool_cost = 0
+            if len(tool_output) == 7:
+                tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens, tool_cost = tool_output
+            else:
+                tool_call_summary, tool_result_text, image_data_url, handled, additional_vision_prompt_tokens, additional_vision_completion_tokens = tool_output
             total_vision_prompt_tokens += additional_vision_prompt_tokens
             total_vision_completion_tokens += additional_vision_completion_tokens
+            total_cost += tool_cost
             if not handled:
                 num_consecutive_failures += 1
                 if num_consecutive_failures > 3:
