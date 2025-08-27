@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import click
 from pathlib import Path
 from .core import perform_task

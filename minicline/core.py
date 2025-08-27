@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 import sys
 from typing import List, Dict, Any, Optional, Tuple, Union
